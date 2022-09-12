@@ -207,6 +207,25 @@ def get_manifest_schema_version(dct: dict) -> int:
     return int(schema_version.split(".")[-2][-1])
 
 
+# we renamed these properties in v1.3
+# be nice to the early adopters -- we love you !
+def rename_metric_attr(data: dict) -> dict:
+    if "sql" in data.keys():
+        if "expression" in data.keys():
+            raise ValidationError("TODO This is bad")
+        else:
+            data["expression"] = data.pop("sql")
+    if "type" in data.keys():
+        if "calculation_method" in data.keys():
+            raise ValidationError("TODO This is bad")
+        else:
+            calculation_method = data.pop("type")
+            if calculation_method == "expression":
+                calculation_method = "derived"
+            data["calculation_method"] = calculation_method
+    return data
+
+
 def upgrade_manifest_json(manifest: dict) -> dict:
     for node_content in manifest.get("nodes", {}).values():
         if "raw_sql" in node_content:
@@ -214,6 +233,12 @@ def upgrade_manifest_json(manifest: dict) -> dict:
         if "compiled_sql" in node_content:
             node_content["compiled_code"] = node_content.pop("compiled_sql")
         node_content["language"] = "sql"
+    for metric_content in manifest.get("metrics", {}).values():
+        # handle attr renames + value translation ("expression" -> "derived")
+        metric_content = rename_metric_attr(metric_content)
+        # mashumaro.exceptions.MissingField: Field "window" of type Optional[MetricTime] is missing in ParsedMetric instance
+        if "window" not in metric_content:
+            metric_content["window"] = None
     return manifest
 
 
