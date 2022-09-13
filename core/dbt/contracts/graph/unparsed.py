@@ -486,7 +486,7 @@ class UnparsedMetric(dbtClassMixin, Replaceable):
 
     @classmethod
     def validate(cls, data):
-        data = rename_metric_attr(data)
+        data = rename_metric_attr(data, raise_deprecation_warning=True)
         super(UnparsedMetric, cls).validate(data)
         if "name" in data and " " in data["name"]:
             raise ParsingException(f"Metrics name '{data['name']}' cannot contain spaces")

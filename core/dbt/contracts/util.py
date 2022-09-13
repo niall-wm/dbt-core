@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import List, Tuple, ClassVar, Type, TypeVar, Dict, Any, Optional
 
 from dbt.clients.system import write_json, read_json
+from dbt import deprecations
 from dbt.exceptions import (
     InternalException,
     RuntimeException,
@@ -208,18 +209,25 @@ def get_manifest_schema_version(dct: dict) -> int:
 
 
 # we renamed these properties in v1.3
-# be nice to the early adopters -- we love you !
-def rename_metric_attr(data: dict) -> dict:
+# this method allows us to be nice to the early adopters
+def rename_metric_attr(data: dict, raise_deprecation_warning: bool = False) -> dict:
+    if raise_deprecation_warning and "sql" in data.keys() or "type" in data.keys():
+        deprecations.warn("metric-attr-renamed")
+    duplicated_attribute_msg = """
+Cannot define both '{}' (old name) and '{}' (new name).
+These are the same attribute. Remove the first and leave the second.
+"""
     if "sql" in data.keys():
         if "expression" in data.keys():
-            raise ValidationError("TODO This is bad")
+            raise ValidationError(duplicated_attribute_msg.format("sql", "expression"))
         else:
             data["expression"] = data.pop("sql")
     if "type" in data.keys():
         if "calculation_method" in data.keys():
-            raise ValidationError("TODO This is bad")
+            raise ValidationError(duplicated_attribute_msg.format("type", "calculation_method"))
         else:
             calculation_method = data.pop("type")
+            # we also changed "type: expression" -> "calculation_method: derived"
             if calculation_method == "expression":
                 calculation_method = "derived"
             data["calculation_method"] = calculation_method
