@@ -211,26 +211,31 @@ def get_manifest_schema_version(dct: dict) -> int:
 # we renamed these properties in v1.3
 # this method allows us to be nice to the early adopters
 def rename_metric_attr(data: dict, raise_deprecation_warning: bool = False) -> dict:
+    metric_name = data["name"]
     if raise_deprecation_warning and "sql" in data.keys() or "type" in data.keys():
-        deprecations.warn("metric-attr-renamed")
-    duplicated_attribute_msg = """
-Cannot define both '{}' (old name) and '{}' (new name).
-These are the same attribute. Remove the first and leave the second.
+        deprecations.warn("metric-attr-renamed", metric_name=metric_name)
+    duplicated_attribute_msg = """\n
+The metric '{}' contains both the deprecated metric property '{}'
+and the up-to-date metric property '{}'. Please remove the deprecated property.
 """
     if "sql" in data.keys():
         if "expression" in data.keys():
-            raise ValidationError(duplicated_attribute_msg.format("sql", "expression"))
+            raise ValidationError(
+                duplicated_attribute_msg.format(metric_name, "sql", "expression")
+            )
         else:
             data["expression"] = data.pop("sql")
     if "type" in data.keys():
         if "calculation_method" in data.keys():
-            raise ValidationError(duplicated_attribute_msg.format("type", "calculation_method"))
+            raise ValidationError(
+                duplicated_attribute_msg.format(metric_name, "type", "calculation_method")
+            )
         else:
             calculation_method = data.pop("type")
-            # we also changed "type: expression" -> "calculation_method: derived"
-            if calculation_method == "expression":
-                calculation_method = "derived"
             data["calculation_method"] = calculation_method
+    # we also changed "type: expression" -> "calculation_method: derived"
+    if data.get("calculation_method") == "expression":
+        data["calculation_method"] = "derived"
     return data
 
 
