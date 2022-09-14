@@ -94,9 +94,9 @@ dbt-core v1.3 renamed attributes for metrics:
 \n  'sql'              -> 'expression'
 \n  'type'             -> 'calculation_method'
 \n  'type: expression' -> 'calculation_method: derived'
-The now old metric parameters will be fully deprecated in v1.4.
-Please remove them from the metric definition of metric '{metric_name}'
-    """
+\nThe old metric parameter names will be fully deprecated in v1.4.
+\nPlease remove them from the metric definition of metric '{metric_name}'
+"""
 
 
 def warn(name, *args, **kwargs):

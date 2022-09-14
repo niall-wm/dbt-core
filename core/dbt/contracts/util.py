@@ -212,7 +212,11 @@ def get_manifest_schema_version(dct: dict) -> int:
 # this method allows us to be nice to the early adopters
 def rename_metric_attr(data: dict, raise_deprecation_warning: bool = False) -> dict:
     metric_name = data["name"]
-    if raise_deprecation_warning and "sql" in data.keys() or "type" in data.keys():
+    if raise_deprecation_warning and (
+        "sql" in data.keys()
+        or "type" in data.keys()
+        or data.get("calculation_method") == "expression"
+    ):
         deprecations.warn("metric-attr-renamed", metric_name=metric_name)
     duplicated_attribute_msg = """\n
 The metric '{}' contains both the deprecated metric property '{}'
