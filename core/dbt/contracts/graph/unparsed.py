@@ -439,6 +439,7 @@ class UnparsedExposure(dbtClassMixin, Replaceable):
     tags: List[str] = field(default_factory=list)
     url: Optional[str] = None
     depends_on: List[str] = field(default_factory=list)
+    config: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -483,6 +484,7 @@ class UnparsedMetric(dbtClassMixin, Replaceable):
     filters: List[MetricFilter] = field(default_factory=list)
     meta: Dict[str, Any] = field(default_factory=dict)
     tags: List[str] = field(default_factory=list)
+    config: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def validate(cls, data):
@@ -490,11 +492,6 @@ class UnparsedMetric(dbtClassMixin, Replaceable):
         super(UnparsedMetric, cls).validate(data)
         if "name" in data and " " in data["name"]:
             raise ParsingException(f"Metrics name '{data['name']}' cannot contain spaces")
-
-        if data.get("calculation_method") == "expression":
-            raise ValidationError(
-                "The metric calculation method expression has been deprecated and renamed to derived. Please update"
-            )
 
         if data.get("model") is None and data.get("calculation_method") != "derived":
             raise ValidationError("Non-derived metrics require a 'model' property")
