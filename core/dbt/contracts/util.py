@@ -253,9 +253,6 @@ def upgrade_manifest_json(manifest: dict) -> dict:
     for metric_content in manifest.get("metrics", {}).values():
         # handle attr renames + value translation ("expression" -> "derived")
         metric_content = rename_metric_attr(metric_content)
-        # mashumaro.exceptions.MissingField: Field "window" of type Optional[MetricTime] is missing in ParsedMetric instance
-        if "window" not in metric_content:
-            metric_content["window"] = None
     return manifest
 
 

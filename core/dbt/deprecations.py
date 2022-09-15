@@ -96,6 +96,7 @@ dbt-core v1.3 renamed attributes for metrics:
 \n  'type: expression' -> 'calculation_method: derived'
 \nThe old metric parameter names will be fully deprecated in v1.4.
 \nPlease remove them from the metric definition of metric '{metric_name}'
+\nRelevant issue here: https://github.com/dbt-labs/dbt-core/issues/5849
 """
 
 
