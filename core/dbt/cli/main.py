@@ -7,7 +7,7 @@ from dbt.adapters.factory import adapter_management
 from dbt.cli import params as p
 from dbt.cli.flags import Flags
 from dbt.profiler import profiler
-from dbt.tracking import initialize_from_flags
+from dbt.tracking import initialize_from_flags_click
 
 
 def cli_runner():
@@ -65,7 +65,7 @@ def cli(ctx, **kwargs):
     ctx.with_resource(adapter_management())
 
     # tracking
-    initialize_from_flags()
+    initialize_from_flags_click(incomplete_flags)
 
     # Version info
     if incomplete_flags.VERSION:
