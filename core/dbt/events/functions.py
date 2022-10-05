@@ -4,6 +4,7 @@ from dbt.events.base_types import NoStdOut, Event, NoFile, ShowException, Cache
 from dbt.events.types import T_Event, MainReportVersion, EmptyLine, EventBufferFull
 import dbt.flags as flags
 from dbt.constants import SECRET_ENV_PREFIX
+from dbt.tracking import active_user
 
 # TODO this will need to move eventually
 from dbt.logger import make_log_dir_if_missing, GLOBAL_LOGGER
@@ -146,7 +147,7 @@ def event_to_serializable_dict(
         "msg": e.message(),
         "level": e.level_tag(),
         "data": log_line,
-        "invocation_id": e.get_invocation_id(),
+        "invocation_id": active_user.invocation_id,
         "thread_name": e.get_thread_name(),
         "code": e.code,
     }
@@ -173,7 +174,7 @@ def create_debug_text_log_line(e: T_Event) -> str:
     # Create a separator if this is the beginning of an invocation
     if type(e) == MainReportVersion:
         separator = 30 * "="
-        log_line = f"\n\n{separator} {get_ts()} | {get_invocation_id()} {separator}\n"
+        log_line = f"\n\n{separator} {get_ts()} | {active_user.invocation_id} {separator}\n"
     color_tag: str = reset_color()
     ts: str = get_ts().strftime("%H:%M:%S.%f")
     scrubbed_msg: str = scrub_secrets(e.message(), env_secrets())
@@ -300,18 +301,10 @@ def fire_event(e: Event) -> None:
                 )
 
 
-def get_invocation_id() -> str:
-    global invocation_id
-    if invocation_id is None:
-        invocation_id = str(uuid.uuid4())
-    return invocation_id
-
-
 def set_invocation_id() -> None:
     # This is primarily for setting the invocation_id for separate
     # commands in the dbt servers. It shouldn't be necessary for the CLI.
-    global invocation_id
-    invocation_id = str(uuid.uuid4())
+    active_user.invocation_id = str(uuid.uuid4())
 
 
 # exactly one time stamp per concrete event

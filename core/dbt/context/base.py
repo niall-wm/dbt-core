@@ -15,7 +15,7 @@ from dbt.exceptions import (
     raise_parsing_error,
     disallow_secret_env_var,
 )
-from dbt.events.functions import fire_event, get_invocation_id
+from dbt.events.functions import fire_event
 from dbt.events.types import MacroEventInfo, MacroEventDebug
 from dbt.version import __version__ as dbt_version
 
@@ -595,7 +595,7 @@ class BaseContext(metaclass=ContextMeta):
         """invocation_id outputs a UUID generated for this dbt run (useful for
         auditing)
         """
-        return get_invocation_id()
+        return tracking.active_user.invocation_id
 
     @contextproperty
     def modules(self) -> Dict[str, Any]:

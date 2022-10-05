@@ -1,4 +1,5 @@
 from typing import Optional
+from contextlib import contextmanager
 
 from dbt.clients.yaml_helper import (  # noqa:F401
     yaml,
@@ -6,7 +7,7 @@ from dbt.clients.yaml_helper import (  # noqa:F401
     Loader,
     Dumper,
 )
-from dbt.events.functions import fire_event, get_invocation_id
+from dbt.events.functions import fire_event
 from dbt.events.types import (
     DisableTracking,
     SendingEvent,
@@ -14,6 +15,12 @@ from dbt.events.types import (
     FlushEvents,
     FlushEventsFailure,
     TrackingInitializeFailure,
+    MainEncounteredError,
+    MainTrackingUserState,
+)
+from dbt.exceptions import (
+    NotImplementedException,
+    FailedToConnectException,
 )
 from dbt import version as dbt_version
 from dbt import flags
@@ -114,7 +121,7 @@ class User:
         self.cookie_dir = cookie_dir
 
         self.id = None
-        self.invocation_id = get_invocation_id()
+        self.invocation_id = str(uuid.uuid4())
         self.run_started_at = datetime.now(tz=pytz.utc)
 
     def state(self):
@@ -195,7 +202,7 @@ def get_invocation_context(user, config, args):
     return {
         "project_id": None if config is None else config.hashed_name(),
         "user_id": user.id,
-        "invocation_id": get_invocation_id(),
+        "invocation_id": user.invocation_id,
         "command": args.which,
         "options": None,
         "version": str(dbt_version.installed),
@@ -278,14 +285,15 @@ def track_invocation_start(config=None, args=None):
 
 
 def track_project_load(options):
-    context = [SelfDescribingJson(LOAD_ALL_TIMING_SPEC, options)]
     assert active_user is not None, "Cannot track project loading time when active user is None"
+    options["invocation_id"] = active_user.invocation_id
+    context = [SelfDescribingJson(LOAD_ALL_TIMING_SPEC, options)]
 
     track(
         active_user,
         category="dbt",
         action="load_project",
-        label=get_invocation_id(),
+        label=active_user.invocation_id,
         context=context,
     )
 
@@ -298,17 +306,22 @@ def track_resource_counts(resource_counts):
         active_user,
         category="dbt",
         action="resource_counts",
-        label=get_invocation_id(),
+        label=active_user.invocation_id,
         context=context,
     )
 
 
 def track_model_run(options):
-    context = [SelfDescribingJson(RUN_MODEL_SPEC, options)]
     assert active_user is not None, "Cannot track model runs when active user is None"
+    options["invocation_id"] = active_user.invocation_id
+    context = [SelfDescribingJson(RUN_MODEL_SPEC, options)]
 
     track(
-        active_user, category="dbt", action="run_model", label=get_invocation_id(), context=context
+        active_user,
+        category="dbt",
+        action="run_model",
+        label=active_user.invocation_id,
+        context=context,
     )
 
 
@@ -320,7 +333,7 @@ def track_rpc_request(options):
         active_user,
         category="dbt",
         action="rpc_request",
-        label=get_invocation_id(),
+        label=active_user.invocation_id,
         context=context,
     )
 
@@ -339,7 +352,7 @@ def track_package_install(config, args, options):
         active_user,
         category="dbt",
         action="package",
-        label=get_invocation_id(),
+        label=active_user.invocation_id,
         property_="install",
         context=context,
     )
@@ -355,7 +368,7 @@ def track_deprecation_warn(options):
         active_user,
         category="dbt",
         action="deprecation",
-        label=get_invocation_id(),
+        label=active_user.invocation_id,
         property_="warn",
         context=context,
     )
@@ -395,7 +408,7 @@ def track_experimental_parser_sample(options):
         active_user,
         category="dbt",
         action="experimental_parser",
-        label=get_invocation_id(),
+        label=active_user.invocation_id,
         context=context,
     )
 
@@ -408,7 +421,7 @@ def track_partial_parser(options):
         active_user,
         category="dbt",
         action="partial_parser",
-        label=get_invocation_id(),
+        label=active_user.invocation_id,
         context=context,
     )
 
@@ -420,7 +433,7 @@ def track_runnable_timing(options):
         active_user,
         category="dbt",
         action="runnable_timing",
-        label=get_invocation_id(),
+        label=active_user.invocation_id,
         context=context,
     )
 
@@ -465,7 +478,7 @@ class InvocationProcessor(logbook.Processor):
             record.extra.update(
                 {
                     "run_started_at": active_user.run_started_at.isoformat(),
-                    "invocation_id": get_invocation_id(),
+                    "invocation_id": active_user.invocation_id,
                 }
             )
 
@@ -476,3 +489,33 @@ def initialize_from_flags():
         initialize_tracking(flags.PROFILES_DIR)
     else:
         do_not_track()
+
+
+@contextmanager
+def track_run(task):
+    track_invocation_start(config=task.config, args=task.args)
+    try:
+        yield
+        track_invocation_end(config=task.config, args=task.args, result_type="ok")
+    except (NotImplementedException, FailedToConnectException) as e:
+        fire_event(MainEncounteredError(exc=str(e)))
+        track_invocation_end(config=task.config, args=task.args, result_type="error")
+    except Exception:
+        track_invocation_end(config=task.config, args=task.args, result_type="error")
+        raise
+    finally:
+        flush()
+
+
+def initialize_tracking_cli(flags):
+    if flags.SEND_ANONYMOUS_USAGE_STATS:
+        active_user = User(flags.PROFILES_DIR)
+        try:
+            active_user.initialize()
+        except Exception:
+            fire_event(TrackingInitializeFailure())
+            active_user = User(None)
+    else:
+        active_user = User(None)
+    fire_event(MainTrackingUserState(user_state=active_user.state()))
+    return active_user

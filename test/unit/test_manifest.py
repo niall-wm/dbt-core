@@ -34,7 +34,6 @@ from dbt.contracts.graph.unparsed import (
 )
 
 from dbt.contracts.graph.compiled import CompiledModelNode
-from dbt.events.functions import get_invocation_id
 from dbt.node_types import NodeType
 import freezegun
 

@@ -18,7 +18,7 @@ from dbt.adapters.factory import (
     get_adapter_package_names,
 )
 from dbt.helper_types import PathSet
-from dbt.events.functions import fire_event, get_invocation_id
+from dbt.events.functions import fire_event
 from dbt.events.types import (
     PartialParsingFullReparseBecauseOfError,
     PartialParsingExceptionFile,
@@ -661,7 +661,7 @@ class ManifestLoader:
                     # We don't want to have stale generated_at dates
                     manifest.metadata.generated_at = datetime.utcnow()
                     # or invocation_ids
-                    manifest.metadata.invocation_id = get_invocation_id()
+                    manifest.metadata.invocation_id = dbt.tracking.active_user.invocation_id
                     return manifest
             except Exception as exc:
                 fire_event(ParsedFileLoadFailed(path=path, exc=str(exc)))
@@ -807,10 +807,8 @@ class ManifestLoader:
 
     # Create tracking event for saving performance info
     def track_project_load(self):
-        invocation_id = get_invocation_id()
         dbt.tracking.track_project_load(
             {
-                "invocation_id": invocation_id,
                 "project_id": self.root_project.hashed_name(),
                 "path_count": self._perf_info.path_count,
                 "parsed_path_count": self._perf_info.parsed_path_count,

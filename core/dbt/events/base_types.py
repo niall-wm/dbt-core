@@ -66,12 +66,6 @@ class Event(metaclass=ABCMeta):
     def get_thread_name(self) -> str:
         return threading.current_thread().name
 
-    @classmethod
-    def get_invocation_id(cls) -> str:
-        from dbt.events.functions import get_invocation_id
-
-        return get_invocation_id()
-
 
 # in preparation for #3977
 @dataclass  # type: ignore[misc]

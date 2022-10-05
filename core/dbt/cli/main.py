@@ -8,6 +8,7 @@ from dbt.cli import params as p
 from dbt.cli.flags import Flags
 from dbt.events.functions import setup_event_logger
 from dbt.profiler import profiler
+from dbt.tracking import initialize_tracking_cli
 import logging
 
 
@@ -54,6 +55,7 @@ def cli(ctx, **kwargs):
     """An ELT tool for managing your SQL transformations and data models.
     For more documentation on these commands, visit: docs.getdbt.com
     """
+    ctx.obj = {}
     flags = Flags(invoked_subcommand=globals()[ctx.invoked_subcommand])
 
     # Logging
@@ -68,6 +70,8 @@ def cli(ctx, **kwargs):
     # Adapter management
     ctx.with_resource(adapter_management())
 
+    # Tracking
+    ctx.obj["active_user"] = initialize_tracking_cli(flags)
     # Version info
     if flags.VERSION:
         click.echo(f"`version` called\n ctx.params: {pf(ctx.params)}")
@@ -101,6 +105,7 @@ def cli(ctx, **kwargs):
 def build(ctx, **kwargs):
     """Run all Seeds, Models, Snapshots, and tests in DAG order"""
     flags = Flags()
+    breakpoint()
     click.echo(f"`{inspect.stack()[0][3]}` called\n flags: {flags}")
 
 
@@ -299,6 +304,7 @@ def parse(ctx, **kwargs):
 def run(ctx, **kwargs):
     """Compile SQL and execute against the current target database."""
     flags = Flags()
+    breakpoint()
     click.echo(f"`{inspect.stack()[0][3]}` called\n flags: {flags}")
 
 

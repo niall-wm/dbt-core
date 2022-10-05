@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import List, Tuple, ClassVar, Type, TypeVar, Dict, Any, Optional
 
 from dbt.clients.system import write_json, read_json
+from dbt.tracking import active_user
 from dbt import deprecations
 from dbt.exceptions import (
     InternalException,
@@ -11,7 +12,6 @@ from dbt.exceptions import (
     IncompatibleSchemaException,
 )
 from dbt.version import __version__
-from dbt.events.functions import get_invocation_id
 from dbt.dataclass_schema import dbtClassMixin
 
 from dbt.dataclass_schema import (
@@ -167,9 +167,9 @@ def get_metadata_env() -> Dict[str, str]:
 @dataclasses.dataclass
 class BaseArtifactMetadata(dbtClassMixin):
     dbt_schema_version: str
+    invocation_id: str
     dbt_version: str = __version__
     generated_at: datetime = dataclasses.field(default_factory=datetime.utcnow)
-    invocation_id: Optional[str] = dataclasses.field(default_factory=get_invocation_id)
     env: Dict[str, str] = dataclasses.field(default_factory=get_metadata_env)
 
     def __post_serialize__(self, dct):

@@ -212,6 +212,7 @@ class RunResultsArtifact(ExecutionResult, ArtifactMixin):
         meta = RunResultsMetadata(
             dbt_schema_version=str(cls.dbt_schema_version),
             generated_at=generated_at,
+            invocation_id="1111",
         )
         return cls(metadata=meta, results=processed_results, elapsed_time=elapsed_time, args=args)
 

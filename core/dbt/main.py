@@ -41,14 +41,13 @@ from dbt.profiler import profiler
 from dbt.adapters.factory import reset_adapters, cleanup_connections
 
 import dbt.tracking
+from dbt.tracking import track_run
 
 from dbt.utils import ExitCodes, args_to_dict
 from dbt.config.profile import read_user_config
 from dbt.exceptions import (
     Exception as dbtException,
     InternalException,
-    NotImplementedException,
-    FailedToConnectException,
 )
 
 
@@ -178,7 +177,6 @@ def handle_and_check(args):
         # Set flags from args, user config, and env vars
         user_config = read_user_config(flags.PROFILES_DIR)  # This is read again later
         flags.set_from_args(parsed, user_config)
-        dbt.tracking.initialize_from_flags()
         # Set log_format from flags
         parsed.cls.set_log_format()
 
@@ -201,22 +199,6 @@ def handle_and_check(args):
             return res, success
 
 
-@contextmanager
-def track_run(task):
-    dbt.tracking.track_invocation_start(config=task.config, args=task.args)
-    try:
-        yield
-        dbt.tracking.track_invocation_end(config=task.config, args=task.args, result_type="ok")
-    except (NotImplementedException, FailedToConnectException) as e:
-        fire_event(MainEncounteredError(exc=str(e)))
-        dbt.tracking.track_invocation_end(config=task.config, args=task.args, result_type="error")
-    except Exception:
-        dbt.tracking.track_invocation_end(config=task.config, args=task.args, result_type="error")
-        raise
-    finally:
-        dbt.tracking.flush()
-
-
 def run_from_args(parsed):
     log_cache_events(getattr(parsed, "log_cache_events", False))
 
@@ -235,9 +217,6 @@ def run_from_args(parsed):
 
     fire_event(MainReportVersion(v=str(dbt.version.installed)))
     fire_event(MainReportArgs(args=args_to_dict(parsed)))
-
-    if dbt.tracking.active_user is not None:  # mypy appeasement, always true
-        fire_event(MainTrackingUserState(user_state=dbt.tracking.active_user.state()))
 
     results = None
 
