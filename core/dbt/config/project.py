@@ -156,7 +156,7 @@ def value_or(value: Optional[T], default: T) -> T:
         return value
 
 
-def _raw_project_from(project_root: str) -> Dict[str, Any]:
+def load_raw_project(project_root: str) -> Dict[str, Any]:
 
     project_root = os.path.normpath(project_root)
     project_yaml_filepath = os.path.join(project_root, "dbt_project.yml")
@@ -485,7 +485,7 @@ class PartialProject(RenderComponents):
         cls, project_root: str, *, verify_version: bool = False
     ) -> "PartialProject":
         project_root = os.path.normpath(project_root)
-        project_dict = _raw_project_from(project_root)
+        project_dict = load_raw_project(project_root)
         config_version = project_dict.get("config-version", 1)
         if config_version != 2:
             raise DbtProjectError(

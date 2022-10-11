@@ -13,6 +13,7 @@ from dbt import flags
 from dbt.adapters.factory import get_relation_class_by_name, get_include_paths
 from dbt.helper_types import FQNPath, PathSet, DictDefaultEmptyStr
 from dbt.config.profile import read_user_config
+from dbt.config.project import load_raw_project
 from dbt.contracts.connection import AdapterRequiredConfig, Credentials
 from dbt.contracts.graph.manifest import ManifestMetadata
 from dbt.contracts.relation import ComponentName
@@ -189,24 +190,32 @@ class RuntimeConfig(Project, Profile, AdapterRequiredConfig):
         return Profile.render_from_args(args, profile_renderer, profile_name)
 
     @classmethod
-    def collect_parts(cls: Type["RuntimeConfig"], args: Any) -> Tuple[Project, Profile]:
-        # profile_name from the project
-        project_root = args.project_dir if args.project_dir else os.getcwd()
-        version_check = bool(flags.VERSION_CHECK)
-        partial = Project.partial_load(project_root, verify_version=version_check)
-
+    def get_profile(
+        cls: Type["RuntimeConfig"], args: Any, cli_vars: Dict[str, Any], raw_profile_name: str
+    ):
         # build the profile using the base renderer and the one fact we know
         # Note: only the named profile section is rendered. The rest of the
         # profile is ignored.
-        cli_vars: Dict[str, Any] = parse_cli_vars(getattr(args, "vars", "{}"))
         profile_renderer = ProfileRenderer(cli_vars)
-        profile_name = partial.render_profile_name(profile_renderer)
+        profile_name = profile_renderer.render_value(raw_profile_name)
         profile = cls._get_rendered_profile(args, profile_renderer, profile_name)
         # Save env_vars encountered in rendering for partial parsing
         profile.profile_env_vars = profile_renderer.ctx_obj.env_vars
+        return profile
 
-        # get a new renderer using our target information and render the
-        # project
+    @classmethod
+    def collect_parts(cls: Type["RuntimeConfig"], args: Any) -> Tuple[Project, Profile]:
+        # profile_name from the project
+        project_root = args.project_dir if args.project_dir else os.getcwd()
+        raw_project = load_raw_project(project_root)
+        raw_profile_name: str = raw_project.get("profile")  # type: ignore
+        cli_vars: Dict[str, Any] = parse_cli_vars(getattr(args, "vars", "{}"))
+
+        profile = cls.get_profile(args, cli_vars, raw_profile_name)
+
+        # get the project with all of the provided information
+        version_check = bool(flags.VERSION_CHECK)
+        partial = Project.partial_load(project_root, verify_version=version_check)
         project_renderer = DbtProjectYamlRenderer(profile, cli_vars)
         project = partial.render(project_renderer)
         # Save env_vars encountered in rendering for partial parsing
