@@ -1,6 +1,7 @@
 import inspect  # This is temporary for RAT-ing
 from copy import copy
 from pprint import pformat as pf  # This is temporary for RAT-ing
+import os
 
 import click
 from dbt.adapters.factory import adapter_management
@@ -9,6 +10,8 @@ from dbt.cli.flags import Flags
 from dbt.events.functions import setup_event_logger
 from dbt.profiler import profiler
 from dbt.tracking import initialize_from_flags, track_run
+from dbt.config.runtime import load_project
+from dbt.config.utils import parse_cli_vars
 
 
 def cli_runner():
@@ -72,6 +75,14 @@ def cli(ctx, **kwargs):
     # Profiling
     if flags.RECORD_TIMING_INFO:
         ctx.with_resource(profiler(enable=True, outfile=flags.RECORD_TIMING_INFO))
+
+    project_root = flags.PROJECT_DIR if flags.PROJECT_DIR else os.getcwd()
+    cli_vars = parse_cli_vars(getattr(flags, "vars", "{}"))
+
+    # TODO need profile to exisit
+    profile = None
+    # project need profile to render because it requires knowing Target
+    ctx.obj["project"] = load_project(project_root, profile, cli_vars)
 
     # Adapter management
     ctx.with_resource(adapter_management())
