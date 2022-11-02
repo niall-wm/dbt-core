@@ -2460,3 +2460,95 @@ def basic_parsed_metric_object():
         meta={},
         tags=[]
     )
+
+# SEMANTIC ADDITIIONS
+@pytest.fixture
+def basic_parsed_public_model_dict():
+    return {
+        'name': 'public_model',
+        'root_path': '/root/',
+        'created_at': 1.0,
+        'resource_type': str(NodeType.Model),
+        'path': '/root/x/path.sql',
+        'original_file_path': '/root/path.sql',
+        'package_name': 'test',
+        'language': 'sql',
+        'raw_code': 'select * from wherever',
+        'unique_id': 'model.test.public_model',
+        'fqn': ['test', 'models', 'public_model'],
+        'refs': [],
+        'sources': [],
+        'metrics': [],
+        'is_public': True,
+        'relationships': [],
+        'primary_keys': [],
+        'depends_on': {'macros': [], 'nodes': []},
+        'database': 'test_db',
+        'description': '',
+        'schema': 'test_schema',
+        'alias': 'bar',
+        'tags': [],
+        'config': {
+            'column_types': {},
+            'enabled': True,
+            'materialized': 'view',
+            'persist_docs': {},
+            'post-hook': [],
+            'pre-hook': [],
+            'quoting': {},
+            'tags': [],
+            'on_schema_change': 'ignore',
+            'meta': {},
+            'grants': {},
+            'docs': {'show': True},
+        'packages': [],
+        },
+        'deferred': False,
+        'docs': {'show': True},
+        'columns': {},
+        'meta': {},
+        'checksum': {'name': 'sha256', 'checksum': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'},
+        'unrendered_config': {},
+        'config_call_dict': {},
+    }
+
+@pytest.fixture
+def basic_parsed_public_model_object():
+    return ParsedModelNode(
+        package_name='test',
+        root_path='/root/',
+        path='/root/x/path.sql',
+        original_file_path='/root/path.sql',
+        language='sql',
+        raw_code='select * from wherever',
+        name='public_model',
+        resource_type=NodeType.Model,
+        unique_id='model.test.public_model',
+        fqn=['test', 'models', 'public_model'],
+        refs=[],
+        sources=[],
+        metrics=[],
+        depends_on=DependsOn(),
+        description='',
+        database='test_db',
+        schema='test_schema',
+        alias='bar',
+        tags=[],
+        is_public=True,
+        primary_keys=[],
+        relationships=[],
+        config=NodeConfig(),
+        meta={},
+        checksum=FileHash.from_contents(''),
+        created_at=1.0,
+    )
+
+def test_public_model_basic(basic_parsed_public_model_object, basic_parsed_public_model_dict):
+    node = basic_parsed_public_model_object
+    node_dict = basic_parsed_public_model_dict
+    compare_dicts(node.to_dict(), node_dict)
+    assert_symmetric(node, node_dict)
+    assert node.empty is False
+    assert node.is_refable is True
+    assert node.is_ephemeral is False
+    pickle.loads(pickle.dumps(node))
