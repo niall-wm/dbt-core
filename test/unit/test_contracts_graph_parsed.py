@@ -140,6 +140,9 @@ def base_parsed_model_dict():
         'refs': [],
         'sources': [],
         'metrics': [],
+        'is_public': False,
+        'relationships': [],
+        'primary_keys': [],
         'depends_on': {'macros': [], 'nodes': []},
         'database': 'test_db',
         'description': '',
@@ -193,6 +196,8 @@ def basic_parsed_model_object():
         schema='test_schema',
         alias='bar',
         tags=[],
+        primary_keys=[],
+        relationships=[],
         config=NodeConfig(),
         meta={},
         checksum=FileHash.from_contents(''),
@@ -239,6 +244,9 @@ def complex_parsed_model_dict():
         'refs': [],
         'sources': [],
         'metrics': [],
+        'is_public': False,
+        'relationships': [],
+        'primary_keys': [],
         'depends_on': {'macros': [], 'nodes': ['model.test.bar']},
         'database': 'test_db',
         'deferred': True,
@@ -269,6 +277,9 @@ def complex_parsed_model_dict():
                 'description': 'a text field',
                 'meta': {},
                 'tags': [],
+                'is_dimension': False,
+                'is_primary_key': False,
+                'time_grains': []
             },
         },
         'checksum': {'name': 'sha256', 'checksum': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'},
@@ -297,6 +308,8 @@ def complex_parsed_model_object():
         refs=[],
         sources=[],
         metrics=[],
+        relationships=[],
+        primary_keys=[],
         depends_on=DependsOn(nodes=['model.test.bar']),
         deferred=True,
         description='My parsed node',
@@ -446,6 +459,9 @@ def basic_parsed_seed_dict():
         'description': '',
         'schema': 'test_schema',
         'tags': [],
+        'is_public': False,
+        'relationships': [],
+        'primary_keys': [],
         'alias': 'foo',
         'config': {
             'column_types': {},
@@ -493,6 +509,8 @@ def basic_parsed_seed_object():
         description='',
         schema='test_schema',
         tags=[],
+        relationships=[],
+        primary_keys=[],
         alias='foo',
         config=SeedConfig(),
         # config=SeedConfig(quote_columns=True),
@@ -548,6 +566,9 @@ def complex_parsed_seed_dict():
         'description': 'a description',
         'schema': 'test_schema',
         'tags': ['mytag'],
+        'is_public': False,
+        'relationships': [],
+        'primary_keys': [],
         'alias': 'foo',
         'config': {
             'column_types': {},
@@ -567,7 +588,17 @@ def complex_parsed_seed_dict():
         },
         'deferred': False,
         'docs': {'show': True},
-        'columns': {'a': {'name': 'a', 'description': 'a column description', 'meta': {}, 'tags': []}},
+        'columns': {
+            'a':{
+                'name': 'a',
+                'description': 'a column description',
+                'meta': {},
+                'tags': [],
+                'is_dimension': False,
+                'is_primary_key': False,
+                'time_grains': []
+            }
+        },
         'meta': {'foo': 1000},
         'checksum': {'name': 'sha256', 'checksum': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'},
         'unrendered_config': {
@@ -598,6 +629,8 @@ def complex_parsed_seed_object():
         description='a description',
         schema='test_schema',
         tags=['mytag'],
+        relationships=[],
+        primary_keys=[],
         alias='foo',
         config=SeedConfig(
             quote_columns=True,
@@ -706,9 +739,14 @@ def basic_parsed_model_patch_dict():
                 'description': 'a text field',
                 'meta': {},
                 'tags': [],
+                'is_dimension': False,
+                'is_primary_key': False,
+                'time_grains': []
             },
         },
         'config': {},
+        'is_public':False,
+        'relationships':[],
     }
 
 
@@ -724,6 +762,8 @@ def basic_parsed_model_patch_object():
         docs=Docs(),
         meta={},
         config={},
+        is_public=False,
+        relationships=[],
     )
 
 
@@ -811,6 +851,9 @@ def base_parsed_hook_dict():
         'schema': 'test_schema',
         'alias': 'bar',
         'tags': [],
+        'is_public':False,
+        'relationships':[],
+        'primary_keys':[],
         'config': {
             'column_types': {},
             'enabled': True,
@@ -858,6 +901,8 @@ def base_parsed_hook_object():
         schema='test_schema',
         alias='bar',
         tags=[],
+        relationships=[],
+        primary_keys=[],
         config=NodeConfig(),
         index=None,
         checksum=FileHash.from_contents(''),
@@ -889,6 +934,9 @@ def complex_parsed_hook_dict():
         'schema': 'test_schema',
         'alias': 'bar',
         'tags': ['tag'],
+        'is_public':False,
+        'relationships':[],
+        'primary_keys':[],
         'meta': {},
         'config': {
             'column_types': {'a': 'text'},
@@ -912,6 +960,9 @@ def complex_parsed_hook_dict():
                 'description': 'a text field',
                 'meta': {},
                 'tags': [],
+                'is_dimension': False,
+                'is_primary_key': False,
+                'time_grains': []
             },
         },
         'index': 13,
@@ -947,6 +998,8 @@ def complex_parsed_hook_object():
         schema='test_schema',
         alias='bar',
         tags=['tag'],
+        relationships=[],
+        primary_keys=[],
         meta={},
         config=NodeConfig(
             column_types={'a': 'text'},
@@ -1043,6 +1096,9 @@ def basic_parsed_schema_test_dict():
         'schema': 'test_schema',
         'alias': 'bar',
         'tags': [],
+        'is_public': False,
+        'relationships': [],
+        'primary_keys': [],
         'meta': {},
         'config': {
             'enabled': True,
@@ -1089,6 +1145,8 @@ def basic_parsed_schema_test_object():
         schema='test_schema',
         alias='bar',
         tags=[],
+        relationships=[],
+        primary_keys=[],
         meta={},
         config=TestConfig(),
         test_metadata=TestMetadata(namespace=None, name='foo', kwargs={}),
@@ -1120,6 +1178,9 @@ def complex_parsed_schema_test_dict():
         'schema': 'test_schema',
         'alias': 'bar',
         'tags': ['tag'],
+        'is_public': False,
+        'relationships': [],
+        'primary_keys': [],
         'meta': {},
         'config': {
             'enabled': True,
@@ -1140,6 +1201,9 @@ def complex_parsed_schema_test_dict():
                 'description': 'a text field',
                 'meta': {},
                 'tags': [],
+                'is_dimension': False,
+                'is_primary_key': False,
+                'time_grains': []
             },
         },
         'column_name': 'id',
@@ -1479,6 +1543,9 @@ def basic_timestamp_snapshot_dict():
         'schema': 'test_schema',
         'alias': 'bar',
         'tags': [],
+        'is_public': False,
+        'relationships': [],
+        'primary_keys': [],
         'config': {
             'column_types': {},
             'enabled': True,
@@ -1536,6 +1603,8 @@ def basic_timestamp_snapshot_object():
         schema='test_schema',
         alias='bar',
         tags=[],
+        relationships=[],
+        primary_keys=[],
         config=SnapshotConfig(
             strategy='timestamp',
             unique_key='id',
@@ -1585,6 +1654,8 @@ def basic_intermediate_timestamp_snapshot_object():
         schema='test_schema',
         alias='bar',
         tags=[],
+        relationships=[],
+        primary_keys=[],
         config=cfg,
         checksum=FileHash.from_contents(''),
         created_at = 1,
@@ -1622,6 +1693,9 @@ def basic_check_snapshot_dict():
         'schema': 'test_schema',
         'alias': 'bar',
         'tags': [],
+        'is_public': False,
+        'relationships': [],
+        'primary_keys': [],
         'config': {
             'column_types': {},
             'enabled': True,
@@ -1789,6 +1863,9 @@ def populated_parsed_node_patch_dict():
                 'description': 'a text field',
                 'meta': {},
                 'tags': [],
+                'is_dimension': False,
+                'is_primary_key': False,
+                'time_grains': []
             },
         },
         'docs': {'show': False},
@@ -1796,6 +1873,8 @@ def populated_parsed_node_patch_dict():
         'yaml_key': 'models',
         'package_name': 'test',
         'config': {},
+        'is_public':False,
+        'relationships':[],
     }
 
 
@@ -1811,6 +1890,8 @@ def populated_parsed_node_patch_object():
         package_name='test',
         docs=Docs(show=False),
         config={},
+        is_public=False,
+        relationships=[],
     )
 
 
