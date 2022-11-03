@@ -1199,7 +1199,7 @@ def _process_semantic_information_for_metric(
         # Alternatively we could just include model in the base class but 
         # I wasn't sure if that was best practice
         for dim in primary_model_dimensions:
-            metric.dimension_metadata[dim.name] = MetricColumnInfo(
+            metric.dimension_info[dim.name] = MetricColumnInfo(
                 name=dim.name
                 ,description=dim.description
                 ,meta=dim.meta
@@ -1247,7 +1247,7 @@ def _process_semantic_information_for_metric(
                 print(relationship_columns)
                 for column in relationship_columns:
                     #TODO: Fix this - don't like it at all
-                    metric.dimension_metadata[column.name] = MetricColumnInfo(
+                    metric.dimension_info[column.name] = MetricColumnInfo(
                             name=column.name
                             ,description=column.description
                             ,meta=column.meta
