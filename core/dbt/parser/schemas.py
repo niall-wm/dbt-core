@@ -1108,21 +1108,21 @@ class MetricParser(YamlReader):
         self.schema_parser = schema_parser
         self.yaml = yaml
 
-    def process_dimension_lists(
-        self, unparsed_dimension_block: List[str] or Dict[str, any], unparsed_model: str
-    ):
-        if isinstance(unparsed_dimension_block, list):
-            # i think this has a real method to resolve refs, but for now hacking this together as POC
-            model_name = (
-                unparsed_model.replace("ref", "")
-                .replace("'", "")
-                .replace('"', "")
-                .replace("(", "")
-                .replace(")", "")
-            )
-            return dict({model_name: unparsed_dimension_block})
-        else:
-            return unparsed_dimension_block
+    # def process_dimension_lists(
+    #     self, unparsed_dimension_block: List[str] or Dict[str, any], unparsed_model: str
+    # ):
+    #     if isinstance(unparsed_dimension_block, list):
+    #         # i think this has a real method to resolve refs, but for now hacking this together as POC
+    #         model_name = (
+    #             unparsed_model.replace("ref", "")
+    #             .replace("'", "")
+    #             .replace('"', "")
+    #             .replace("(", "")
+    #             .replace(")", "")
+    #         )
+    #         return dict({model_name: unparsed_dimension_block})
+    #     else:
+    #         return unparsed_dimension_block
 
     def parse_metric(self, unparsed: UnparsedMetric):
         package_name = self.project.project_name
@@ -1167,7 +1167,7 @@ class MetricParser(YamlReader):
             calculation_method=unparsed.calculation_method,
             expression=str(unparsed.expression),
             timestamp=unparsed.timestamp,
-            dimensions=self.process_dimension_lists(unparsed.dimensions, unparsed.model),
+            dimensions=unparsed.dimensions,
             allow_joins=unparsed.allow_joins,
             window=unparsed.window,
             time_grains=unparsed.time_grains,

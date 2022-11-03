@@ -148,11 +148,9 @@ class UnparsedColumn(HasTests):
 class HasColumnDocs(dbtClassMixin, Replaceable):
     columns: Sequence[HasDocs] = field(default_factory=list)
 
-
 @dataclass
 class HasColumnTests(HasColumnDocs):
     columns: Sequence[UnparsedColumn] = field(default_factory=list)
-
 
 @dataclass
 class HasYamlMetadata(dbtClassMixin):
@@ -518,7 +516,7 @@ class UnparsedMetric(dbtClassMixin, Replaceable):
     expression: str
     description: str = ""
     time_grains: Optional[List[str]] = field(default_factory=list)
-    dimensions: Union[Dict[str, Any], List[str]] = field(default_factory=dict)
+    dimensions: List[str] = field(default_factory=list)
     window: Optional[MetricTime] = None
     model: Optional[str] = None
     allow_joins: Optional[bool] = True

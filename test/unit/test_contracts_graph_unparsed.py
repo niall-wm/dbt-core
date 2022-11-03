@@ -337,6 +337,8 @@ class TestUnparsedSourceDefinition(ContractTestCase):
                     'freshness': {'error_after': {}, 'warn_after': {}},
                     'meta': {},
                     'tags': [],
+                    'is_public': False,
+                    'relationships': [],
                 },
                 {
                     'name': 'table2',
@@ -349,6 +351,8 @@ class TestUnparsedSourceDefinition(ContractTestCase):
                     'freshness': {'error_after': {}, 'warn_after': {}},
                     'meta': {},
                     'tags': [],
+                    'is_public': False,
+                    'relationships': [],
                 },
             ],
             'tags': [],
@@ -422,6 +426,8 @@ class TestUnparsedNodeUpdate(ContractTestCase):
             'tests': [],
             'meta': {},
             'config': {},
+            'is_public': False,
+            'relationships': [],
         }
         self.assert_from_dict(minimum, from_dict)
         self.assert_to_dict(minimum, to_dict)
@@ -461,6 +467,8 @@ class TestUnparsedNodeUpdate(ContractTestCase):
             'package_name': 'test',
             'description': 'a description',
             'tests': ['table_test'],
+            'is_public': False,
+            'relationships': [],
             'meta': {'key': ['value1', 'value2']},
             'columns': [
                 {
@@ -470,6 +478,9 @@ class TestUnparsedNodeUpdate(ContractTestCase):
                     'tests': [],
                     'meta': {'key2': 'value3'},
                     'tags': [],
+                    'is_dimension': False,
+                    'is_primary_key': False,
+                    'time_grains': [],
                 },
                 {
                     'name': 'y',
@@ -481,6 +492,9 @@ class TestUnparsedNodeUpdate(ContractTestCase):
                     ],
                     'meta': {},
                     'tags': ['a', 'b'],
+                    'is_dimension': False,
+                    'is_primary_key': False,
+                    'time_grains': [],
                 },
             ],
             'docs': {'show': False},
@@ -505,6 +519,9 @@ class TestUnparsedNodeUpdate(ContractTestCase):
                     'docs': {'show': True},
                     'tests': [],
                     'meta': {'key2': 'value3'},
+                    'is_dimension': False,
+                    'is_primary_key': False,
+                    'time_grains': [],
                 },
                 {
                     'name': 'y',
@@ -515,6 +532,9 @@ class TestUnparsedNodeUpdate(ContractTestCase):
                         {'accepted_values': {'values': ['blue', 'green']}}
                     ],
                     'meta': {},
+                    'is_dimension': False,
+                    'is_primary_key': False,
+                    'time_grains': [],
                     'yaml_key': 'models',
                     'original_file_path': '/some/fake/path',
                 },
@@ -531,6 +551,8 @@ class TestUnparsedNodeUpdate(ContractTestCase):
             'description': 'a description',
             'tests': ['table_test'],
             'meta': {'key': ['value1', 'value2']},
+            'is_public': False,
+            'relationships': [],
             'columns': [
                 # column missing a name
                 {
@@ -538,7 +560,8 @@ class TestUnparsedNodeUpdate(ContractTestCase):
                     'docs': {'show': True},
                     'tests': [],
                     'meta': {'key2': 'value3'},
-
+                    'is_dimension': False,
+                    'is_primary_key': False,
                 },
                 {
                     'name': 'y',
@@ -549,6 +572,8 @@ class TestUnparsedNodeUpdate(ContractTestCase):
                         {'accepted_values': {'values': ['blue', 'green']}}
                     ],
                     'meta': {},
+                    'is_dimension': False,
+                    'is_primary_key': False,
                     'yaml_key': 'models',
                     'original_file_path': '/some/fake/path',
                 },
@@ -565,6 +590,8 @@ class TestUnparsedNodeUpdate(ContractTestCase):
             'description': 'a description',
             'tests': ['table_test'],
             'meta': {'key': ['value1', 'value2']},
+            'is_public': False,
+            'relationships': [],
             'columns': [
                 {
                     'name': 'x',

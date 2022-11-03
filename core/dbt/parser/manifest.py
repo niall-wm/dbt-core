@@ -66,6 +66,7 @@ from dbt.contracts.graph.parsed import (
     ParsedNode,
     ParsedMacro,
     ColumnInfo,
+    MetricColumnInfo,
     ParsedExposure,
     ParsedMetric,
 )
@@ -1177,6 +1178,7 @@ def _process_semantic_information_for_metric(
     target_model_package: Optional[str],
     current_project: Optional[str],
 ):
+
     # ensure that relationships are not declared on non-public models
     if target_model.relationships and not target_model.is_public:
         raise dbt.exceptions.InternalException(
@@ -1191,25 +1193,43 @@ def _process_semantic_information_for_metric(
         timestamp_col = target_model.columns[metric.timestamp]
 
         # validate declared dims from primary model
+
+        # There has to be a cleaner way to transform a ColumnInfo object to a 
+        # MetricColumnInfo object
+        # Alternatively we could just include model in the base class but 
+        # I wasn't sure if that was best practice
         for dim in primary_model_dimensions:
+            metric.dimension_metadata[dim.name] = MetricColumnInfo(
+                name=dim.name
+                ,description=dim.description
+                ,meta=dim.meta
+                ,data_type=dim.data_type
+                ,quote=dim.quote
+                ,is_dimension=dim.is_dimension
+                ,is_primary_key=dim.is_primary_key
+                ,time_grains=dim.time_grains
+                ,tags=dim.tags
+                ,_extra=dim._extra
+                ,model = target_model.name)
             if not dim.data_type:
                 raise dbt.exceptions.InternalException(
                     f"Dimension columns must declare a `data_type` attribute. {dim.name} is missing this configuration."
                 )
 
         # check if dimensions declared, if not, supply dimensions from model yml
+            
         if not metric.dimensions:
-            metric.dimensions[target_model.name] = [col.name for col in primary_model_dimensions]
+            metric.dimensions = [col.name for col in primary_model_dimensions]
         else:
             # TODO -- do we actually want to append missing dims here?
-            for metric_dim in metric.dimensions[target_model.name]:
+            for metric_dim in metric.dimensions:
                 if metric_dim not in [dim.name for dim in primary_model_dimensions]:
                     raise dbt.exceptions.InternalException(
                         f"Metric dimensions on public models must be declared as dimensions in the model yml file. Dimension `{metric_dim}` declared on metric `{metric.name}` is missing this configuration."
                     )
             for dim in primary_model_dimensions:
-                if dim.name not in metric.dimensions[target_model.name]:
-                    metric.dimensions[target_model.name].append(dim.name)
+                if dim.name not in metric.dimensions:
+                    metric.dimensions.append(dim.name)
 
         if metric.allow_joins:
             for relationship in target_model.relationships:
@@ -1223,15 +1243,28 @@ def _process_semantic_information_for_metric(
 
                 metric.depends_on.nodes.append(to_model.unique_id)
 
-                new_dims = [col for col in to_model.columns.values() if col.is_dimension]
-                if new_dims:
-                    metric.dimensions[to_model.name] = []
-                for col in new_dims:
-                    if not col.data_type:
+                relationship_columns = [column for column in to_model.columns.values() if column.is_dimension]
+                print(relationship_columns)
+                for column in relationship_columns:
+                    #TODO: Fix this - don't like it at all
+                    metric.dimension_metadata[column.name] = MetricColumnInfo(
+                            name=column.name
+                            ,description=column.description
+                            ,meta=column.meta
+                            ,data_type=column.data_type
+                            ,quote=column.quote
+                            ,is_dimension=column.is_dimension
+                            ,is_primary_key=column.is_primary_key
+                            ,time_grains=column.time_grains
+                            ,tags=column.tags
+                            ,_extra=column._extra
+                            ,model = to_model.name)
+
+                    if not column.data_type:
                         raise dbt.exceptions.InternalException(
-                            f"Dimension columns must declare a `data_type` attribute. {col.name} is missing this configuration."
+                            f"Dimension columns must declare a `data_type` attribute. {column.name} is missing this configuration."
                         )
-                    metric.dimensions[to_model.name].append(col.name)
+                    metric.dimensions.append(column.name)
 
         if (
             not metric.time_grains
