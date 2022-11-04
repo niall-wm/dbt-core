@@ -1,7 +1,6 @@
 import inspect  # This is temporary for RAT-ing
 from copy import copy
 from pprint import pformat as pf  # This is temporary for RAT-ing
-import os
 
 import click
 from dbt.adapters.factory import adapter_management
@@ -76,13 +75,12 @@ def cli(ctx, **kwargs):
     if flags.RECORD_TIMING_INFO:
         ctx.with_resource(profiler(enable=True, outfile=flags.RECORD_TIMING_INFO))
 
-    project_root = flags.PROJECT_DIR if flags.PROJECT_DIR else os.getcwd()
     cli_vars = parse_cli_vars(getattr(flags, "vars", "{}"))
 
     # TODO need profile to exisit
     profile = None
     # project need profile to render because it requires knowing Target
-    ctx.obj["project"] = load_project(project_root, profile, cli_vars)
+    ctx.obj["project"] = load_project(flags.PROJECT_DIR, profile, cli_vars)
 
     # Adapter management
     ctx.with_resource(adapter_management())

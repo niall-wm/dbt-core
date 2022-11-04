@@ -35,7 +35,7 @@ def load_project(
     project_root: str,
     profile: HasCredentials,
     cli_vars: Optional[Dict[str, Any]] = None,
-):
+) -> Project:
     # get the project with all of the provided information
     version_check = bool(flags.VERSION_CHECK)
     partial = Project.partial_load(project_root, verify_version=version_check)
@@ -207,7 +207,7 @@ class RuntimeConfig(Project, Profile, AdapterRequiredConfig):
     @classmethod
     def get_profile(
         cls: Type["RuntimeConfig"], args: Any, cli_vars: Dict[str, Any], raw_profile_name: str
-    ):
+    ) -> Profile:
         # build the profile using the base renderer and the one fact we know
         # Note: only the named profile section is rendered. The rest of the
         # profile is ignored.
