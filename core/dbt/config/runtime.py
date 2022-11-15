@@ -38,9 +38,11 @@ def load_project(
     cli_vars: Optional[Dict[str, Any]] = None,
 ) -> Project:
     # get the project with all of the provided information
-    partial = Project.partial_load(project_root, verify_version=version_check)
     project_renderer = DbtProjectYamlRenderer(profile, cli_vars)
-    project = partial.render(project_renderer)
+    project = Project.from_project_root(
+        project_root, project_renderer, verify_version=version_check
+    )
+
     # Save env_vars encountered in rendering for partial parsing
     project.project_env_vars = project_renderer.ctx_obj.env_vars
     return project

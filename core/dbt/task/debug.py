@@ -10,7 +10,7 @@ from dbt import flags
 import dbt.clients.system
 import dbt.exceptions
 from dbt.adapters.factory import get_adapter, register_adapter
-from dbt.config import Project, Profile
+from dbt.config import PartialProject, Project, Profile
 from dbt.config.renderer import DbtProjectYamlRenderer, ProfileRenderer
 from dbt.config.utils import parse_cli_vars
 from dbt.clients.yaml_helper import load_yaml_text
@@ -171,7 +171,7 @@ class DebugTask(BaseTask):
         project_profile: Optional[str] = None
         if os.path.exists(self.project_path):
             try:
-                partial = Project.partial_load(
+                partial = PartialProject.from_project_root(
                     os.path.dirname(self.project_path),
                     verify_version=bool(flags.VERSION_CHECK),
                 )
