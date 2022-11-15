@@ -33,11 +33,11 @@ from dbt.dataclass_schema import ValidationError
 
 def load_project(
     project_root: str,
+    version_check: bool,
     profile: HasCredentials,
     cli_vars: Optional[Dict[str, Any]] = None,
 ) -> Project:
     # get the project with all of the provided information
-    version_check = bool(flags.VERSION_CHECK)
     partial = Project.partial_load(project_root, verify_version=version_check)
     project_renderer = DbtProjectYamlRenderer(profile, cli_vars)
     project = partial.render(project_renderer)
@@ -228,7 +228,7 @@ class RuntimeConfig(Project, Profile, AdapterRequiredConfig):
 
         profile = cls.get_profile(args, cli_vars, raw_profile_name)
 
-        project = load_project(project_root, profile, cli_vars)
+        project = load_project(project_root, bool(flags.VERSION_CHECK), profile, cli_vars)
 
         return (project, profile)
 

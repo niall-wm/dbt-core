@@ -78,7 +78,7 @@ def cli(ctx, **kwargs):
     profile = None
 
     # project need profile to render because it requires knowing Target
-    ctx.obj["project"] = load_project(flags.PROJECT_DIR, profile, flags.VARS)
+    ctx.obj["project"] = load_project(flags.PROJECT_DIR, flags.VERSION_CHECK, profile, flags.VARS)
     # Adapter management
     ctx.with_resource(adapter_management())
 
