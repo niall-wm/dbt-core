@@ -1,6 +1,8 @@
 from click import ParamType
 import yaml
 
+from dbt.config.utils import parse_cli_vars
+
 
 class YAML(ParamType):
     """The Click YAML type. Converts YAML strings into objects."""
@@ -12,7 +14,7 @@ class YAML(ParamType):
         if not isinstance(value, str):
             self.fail(f"Cannot load YAML from type {type(value)}", param, ctx)
         try:
-            return yaml.load(value, Loader=yaml.Loader)
+            return parse_cli_vars(value)
         except yaml.parser.ParserError:
             self.fail(f"String '{value}' is not valid YAML", param, ctx)
 

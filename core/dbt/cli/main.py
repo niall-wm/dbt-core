@@ -10,7 +10,6 @@ from dbt.events.functions import setup_event_logger
 from dbt.profiler import profiler
 from dbt.tracking import initialize_from_flags, track_run
 from dbt.config.runtime import load_project
-from dbt.config.utils import parse_cli_vars
 
 
 def cli_runner():
@@ -57,8 +56,8 @@ def cli(ctx, **kwargs):
     """An ELT tool for managing your SQL transformations and data models.
     For more documentation on these commands, visit: docs.getdbt.com
     """
+    ctx.obj = {}
     flags = Flags()
-
     # Logging
     # N.B. Legacy logger is not supported
     setup_event_logger(
@@ -75,13 +74,11 @@ def cli(ctx, **kwargs):
     if flags.RECORD_TIMING_INFO:
         ctx.with_resource(profiler(enable=True, outfile=flags.RECORD_TIMING_INFO))
 
-    cli_vars = parse_cli_vars(getattr(flags, "vars", "{}"))
-
     # TODO need profile to exisit
     profile = None
-    # project need profile to render because it requires knowing Target
-    ctx.obj["project"] = load_project(flags.PROJECT_DIR, profile, cli_vars)
 
+    # project need profile to render because it requires knowing Target
+    ctx.obj["project"] = load_project(flags.PROJECT_DIR, profile, flags.VARS)
     # Adapter management
     ctx.with_resource(adapter_management())
 
