@@ -76,7 +76,7 @@ class _Logger:
 
     def write_line(self, e: BaseEvent):
         line = self.create_line(e)
-        python_level = _log_level_map[e.level_tag()]
+        python_level = _log_level_map[e.log_level()]
         if self._python_logger is not None:
             self._python_logger.log(python_level, line)
         elif self._stream is not None and _log_level_map[self.level] <= python_level:
@@ -113,7 +113,7 @@ class _TextLogger(_Logger):
             log_line = f"\n\n{separator} {datetime.utcnow()} | {self.event_manager.invocation_id} {separator}\n"
         ts: str = datetime.utcnow().strftime("%H:%M:%S.%f")
         scrubbed_msg: str = self.scrubber(e.message())  # type: ignore
-        log_line += f"{self._get_color_tag()}{ts} [{e.level_tag():<5}]{self._get_thread_name()} {scrubbed_msg}"
+        log_line += f"{self._get_color_tag()}{ts} [{e.log_level():<5}]{self._get_thread_name()} {scrubbed_msg}"
         return log_line
 
     def _get_color_tag(self) -> str:

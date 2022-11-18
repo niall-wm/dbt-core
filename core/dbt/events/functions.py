@@ -1,7 +1,9 @@
 import betterproto
-from dbt.constants import SECRET_ENV_PREFIX, METADATA_ENV_PREFIX
+from dbt.constants import METADATA_ENV_PREFIX
 from dbt.events.base_types import BaseEvent, Cache, EventLevel, NoFile, NoStdOut
 from dbt.events.eventmgr import EventManager, LoggerConfig, LineFormat, NoFilter
+from dbt.events.helpers import env_secrets, scrub_secrets
+from dbt.events.proto_types import EventInfo
 from dbt.events.types import EmptyLine
 import dbt.flags as flags
 from dbt.logger import GLOBAL_LOGGER, make_log_dir_if_missing
@@ -9,7 +11,7 @@ from functools import partial
 import json
 import os
 import sys
-from typing import Callable, Dict, List, Optional, TextIO
+from typing import Callable, Dict, Optional, TextIO
 import uuid
 
 
@@ -66,8 +68,8 @@ def _stdout_filter(
     return (
         not isinstance(evt, NoStdOut)
         and (not isinstance(evt, Cache) or log_cache_events)
-        and (evt.level_tag() != EventLevel.DEBUG or debug_mode)
-        and (evt.level_tag() == EventLevel.ERROR or not quiet_mode)
+        and (evt.log_level() != EventLevel.DEBUG or debug_mode)
+        and (evt.log_level() == EventLevel.ERROR or not quiet_mode)
         and not (flags.LOG_FORMAT == "json" and type(evt) == EmptyLine)
     )
 
@@ -126,19 +128,6 @@ def stop_capture_stdout_logs():
     _CAPTURE_STREAM = None
 
 
-def env_secrets() -> List[str]:
-    return [v for k, v in os.environ.items() if k.startswith(SECRET_ENV_PREFIX) and v.strip()]
-
-
-def scrub_secrets(msg: str, secrets: List[str]) -> str:
-    scrubbed = msg
-
-    for secret in secrets:
-        scrubbed = scrubbed.replace(secret, "*****")
-
-    return scrubbed
-
-
 # returns a dictionary representation of the event fields.
 # the message may contain secrets which must be scrubbed at the usage site.
 def event_to_json(event: BaseEvent) -> str:
@@ -157,6 +146,15 @@ def event_to_dict(event: BaseEvent) -> dict:
         event_type = type(event).__name__
         raise Exception(f"type {event_type} is not serializable. {str(exc)}")
     return event_dict
+
+
+def warn_or_error(event, node=None):
+    if flags.WARN_ERROR:
+        from dbt.exceptions import raise_compiler_error
+
+        raise_compiler_error(scrub_secrets(event.info.msg, env_secrets()), node)
+    else:
+        fire_event(event)
 
 
 # an alternative to fire_event which only creates and logs the event value
@@ -198,3 +196,11 @@ def set_invocation_id() -> None:
     # This is primarily for setting the invocation_id for separate
     # commands in the dbt servers. It shouldn't be necessary for the CLI.
     EVENT_MANAGER.invocation_id = str(uuid.uuid4())
+
+
+# Currently used to set the level in EventInfo, so logging events can
+# provide more than one "level". Might be used in the future to set
+# more fields in EventInfo, once some of that information is no longer global
+def info(level="info"):
+    info = EventInfo(level=level)
+    return info

@@ -60,7 +60,9 @@ class BaseEvent:
 
     def __post_init__(self):
         super().__post_init__()
-        self.info.level = self.level_tag()
+        if not self.info.level:
+            self.info.level = self.level_tag()
+        assert self.info.level in ["info", "warn", "error", "debug", "test"]
         if not hasattr(self.info, "msg") or not self.info.msg:
             self.info.msg = self.message()
         self.info.invocation_id = get_invocation_id()
@@ -71,11 +73,23 @@ class BaseEvent:
         self.info.code = self.code()
         self.info.name = type(self).__name__
 
+    # This is here because although we know that info should always
+    # exist, mypy doesn't.
+    def log_level(self) -> EventLevel:
+        return self.info.level  # type: ignore
+
     def level_tag(self) -> EventLevel:
-        raise Exception("level_tag() not implemented for event")
+        return EventLevel.DEBUG
 
     def message(self) -> str:
         raise Exception("message() not implemented for event")
+
+
+# DynamicLevel requires that the level be supplied on the
+# event construction call using the "info" function from functions.py
+@dataclass  # type: ignore[misc]
+class DynamicLevel(BaseEvent):
+    pass
 
 
 @dataclass
