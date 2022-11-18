@@ -1609,10 +1609,7 @@ message GeneralWarningException {
     string log_fmt = 3;
 }
 
-// Z048
-message EventBufferFull {
-    EventInfo info = 1;
-}
+// Skipped Z048
 
 // Z049
 message RunResultWarningMessage {

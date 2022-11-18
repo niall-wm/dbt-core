@@ -22,7 +22,6 @@ from dbt.exceptions import (
     InternalException,
 )
 from dbt.logger import log_manager
-import dbt.events.functions as event_logger
 from dbt.events.functions import fire_event
 from dbt.events.types import (
     DbtProjectError,
@@ -85,9 +84,6 @@ class BaseTask(metaclass=ABCMeta):
         """A hook called before the task is initialized."""
         if args.log_format == "json":
             log_manager.format_json()
-            # we're mutating the initialized, but not-yet-configured event logger
-            # because it's being configured too late -- bad! TODO refactor!
-            event_logger.format_json = True
         else:
             log_manager.format_text()
 
@@ -95,9 +91,6 @@ class BaseTask(metaclass=ABCMeta):
     def set_log_format(cls):
         if flags.LOG_FORMAT == "json":
             log_manager.format_json()
-            # we're mutating the initialized, but not-yet-configured event logger
-            # because it's being configured too late -- bad! TODO refactor!
-            event_logger.format_json = True
         else:
             log_manager.format_text()
 

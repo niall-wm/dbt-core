@@ -2468,18 +2468,6 @@ class GeneralWarningException(WarnLevel, pt.GeneralWarningException):
 
 
 @dataclass
-class EventBufferFull(WarnLevel, pt.EventBufferFull):
-    def code(self):
-        return "Z048"
-
-    def message(self) -> str:
-        return (
-            "Internal logging/event buffer full."
-            "Earliest logs/events will be dropped as new ones are fired (FIFO)."
-        )
-
-
-@dataclass
 class RunResultWarningMessage(WarnLevel, EventStringFunctor, pt.RunResultWarningMessage):
     def code(self):
         return "Z049"
@@ -2865,4 +2853,3 @@ if 1 == 0:
     TrackingInitializeFailure()
     GeneralWarningMsg(msg="", log_fmt="")
     GeneralWarningException(exc="", log_fmt="")
-    EventBufferFull()

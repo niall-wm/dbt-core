@@ -1,7 +1,7 @@
 # flake8: noqa
 from dbt.events.test_types import UnitTestInfo
 from dbt.events import AdapterLogger
-from dbt.events.functions import event_to_json, LOG_VERSION, reset_event_history
+from dbt.events.functions import event_to_json, LOG_VERSION
 from dbt.events.types import *
 from dbt.events.test_types import *
 
@@ -102,28 +102,6 @@ class TestEventCodes:
                     event.info.code not in all_codes
                 ), f"{event.code} is assigned more than once. Check types.py for duplicates."
                 all_codes.add(event.info.code)
-
-
-class TestEventBuffer:
-    def setUp(self) -> None:
-        flags.EVENT_BUFFER_SIZE = 10
-        reload(event_funcs)
-
-    # ensure events are populated to the buffer exactly once
-    def test_buffer_populates(self):
-        self.setUp()
-        event_funcs.fire_event(UnitTestInfo(msg="Test Event 1"))
-        event_funcs.fire_event(UnitTestInfo(msg="Test Event 2"))
-        event1 = event_funcs.EVENT_HISTORY[-2]
-        assert event_funcs.EVENT_HISTORY.count(event1) == 1
-
-    # ensure events drop from the front of the buffer when buffer maxsize is reached
-    def test_buffer_FIFOs(self):
-        reset_event_history()
-        event_funcs.EVENT_HISTORY.clear()
-        for n in range(1, (flags.EVENT_BUFFER_SIZE + 2)):
-            event_funcs.fire_event(UnitTestInfo(msg=f"Test Event {n}"))
-        assert event_funcs.EVENT_HISTORY.count(UnitTestInfo(msg="Test Event 1")) == 0
 
 
 def MockNode():
@@ -447,7 +425,6 @@ sample_values = [
     IntegrationTestWarn(msg=""),
     IntegrationTestError(msg=""),
     IntegrationTestException(msg=""),
-    EventBufferFull(),
     RecordRetryException(exc=""),
     UnitTestInfo(msg=""),
 ]
