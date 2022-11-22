@@ -48,6 +48,25 @@ def load_project(
     return project
 
 
+def load_profile(
+    project_root: str,
+    cli_vars: Dict[str, Any],
+    threads_override: Optional[int] = None,
+    target_override: Optional[str] = None,
+    profile_name_override: Optional[str] = None,
+) -> Profile:
+    raw_project = load_raw_project(project_root)
+    raw_profile_name: str = raw_project.get("profile")  # type: ignore
+    profile_renderer = ProfileRenderer(cli_vars)
+    profile_name = profile_renderer.render_value(raw_profile_name)
+    profile = Profile.render_from_args(
+        profile_renderer, profile_name, threads_override, target_override, profile_name_override
+    )
+    # Save env_vars encountered in rendering for partial parsing
+    profile.profile_env_vars = profile_renderer.ctx_obj.env_vars
+    return profile
+
+
 def _project_quoting_dict(proj: Project, profile: Profile) -> Dict[ComponentName, bool]:
     src: Dict[str, Any] = profile.credentials.translate_aliases(proj.quoting)
     result: Dict[ComponentName, bool] = {}
@@ -197,38 +216,17 @@ class RuntimeConfig(Project, Profile, AdapterRequiredConfig):
             raise DbtProjectError(validator_error_message(e)) from e
 
     @classmethod
-    def _get_rendered_profile(
-        cls,
-        args: Any,
-        profile_renderer: ProfileRenderer,
-        profile_name: Optional[str],
-    ) -> Profile:
-
-        return Profile.render_from_args(args, profile_renderer, profile_name)
-
-    @classmethod
-    def get_profile(
-        cls: Type["RuntimeConfig"], args: Any, cli_vars: Dict[str, Any], raw_profile_name: str
-    ) -> Profile:
-        # build the profile using the base renderer and the one fact we know
-        # Note: only the named profile section is rendered. The rest of the
-        # profile is ignored.
-        profile_renderer = ProfileRenderer(cli_vars)
-        profile_name = profile_renderer.render_value(raw_profile_name)
-        profile = cls._get_rendered_profile(args, profile_renderer, profile_name)
-        # Save env_vars encountered in rendering for partial parsing
-        profile.profile_env_vars = profile_renderer.ctx_obj.env_vars
-        return profile
-
-    @classmethod
     def collect_parts(cls: Type["RuntimeConfig"], args: Any) -> Tuple[Project, Profile]:
         # profile_name from the project
         project_root = args.project_dir if args.project_dir else os.getcwd()
-        raw_project = load_raw_project(project_root)
-        raw_profile_name: str = raw_project.get("profile")  # type: ignore
         cli_vars: Dict[str, Any] = parse_cli_vars(getattr(args, "vars", "{}"))
-
-        profile = cls.get_profile(args, cli_vars, raw_profile_name)
+        profile = load_profile(
+            project_root,
+            cli_vars,
+            getattr(args, "threads", None),
+            getattr(args, "target", None),
+            getattr(args, "profile", None),
+        )
 
         project = load_project(project_root, bool(flags.VERSION_CHECK), profile, cli_vars)
 
