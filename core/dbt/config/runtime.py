@@ -85,6 +85,21 @@ class RuntimeConfig(Project, Profile, AdapterRequiredConfig):
     cli_vars: Dict[str, Any]
     dependencies: Optional[Mapping[str, "RuntimeConfig"]] = None
 
+    @classmethod
+    def get_profile(
+        cls,
+        project_root: str,
+        cli_vars: Dict[str, Any],
+        args: Any,
+    ) -> Profile:
+        return load_profile(
+            project_root,
+            cli_vars,
+            getattr(args, "threads", None),
+            getattr(args, "target", None),
+            getattr(args, "profile", None),
+        )
+
     def __post_init__(self):
         self.validate()
 
@@ -220,12 +235,11 @@ class RuntimeConfig(Project, Profile, AdapterRequiredConfig):
         # profile_name from the project
         project_root = args.project_dir if args.project_dir else os.getcwd()
         cli_vars: Dict[str, Any] = parse_cli_vars(getattr(args, "vars", "{}"))
-        profile = load_profile(
+
+        profile = cls.get_profile(
             project_root,
             cli_vars,
-            getattr(args, "threads", None),
-            getattr(args, "target", None),
-            getattr(args, "profile", None),
+            args,
         )
 
         project = load_project(project_root, bool(flags.VERSION_CHECK), profile, cli_vars)
@@ -580,18 +594,25 @@ class UnsetProfileConfig(RuntimeConfig):
         )
 
     @classmethod
-    def _get_rendered_profile(
+    def get_profile(
         cls,
+        project_root: str,
+        cli_vars: Dict[str, Any],
         args: Any,
-        profile_renderer: ProfileRenderer,
-        profile_name: Optional[str],
     ) -> Profile:
+        """
+        Moving all logic regarding constructing a complete UnsetProfile to this function
+        This way we can have a clean load_profile function to call by the new CLI and remove
+        all logic for UnsetProfile once we migrate to new click CLI
+        """
 
         profile = UnsetProfile()
         # The profile (for warehouse connection) is not needed, but we want
         # to get the UserConfig, which is also in profiles.yml
-        user_config = read_user_config(flags.PROFILES_DIR)
+        user_config = read_user_config(project_root)
         profile.user_config = user_config
+        profile_renderer = ProfileRenderer(cli_vars)
+        profile.profile_env_vars = profile_renderer.ctx_obj.env_vars
         return profile
 
     @classmethod
