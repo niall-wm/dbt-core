@@ -249,7 +249,7 @@ class DebugTask(BaseTask):
         renderer = ProfileRenderer(self.cli_vars)
         for profile_name in profile_names:
             try:
-                profile: Profile = Profile.render_from_args(
+                profile: Profile = Profile.render(
                     renderer,
                     profile_name,
                     getattr(self.args, "threads", None),

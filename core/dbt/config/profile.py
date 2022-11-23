@@ -399,7 +399,7 @@ class Profile(HasCredentials):
         )
 
     @classmethod
-    def render_from_args(
+    def render(
         cls,
         renderer: ProfileRenderer,
         project_profile_name: Optional[str],

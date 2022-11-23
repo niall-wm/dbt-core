@@ -59,7 +59,7 @@ def load_profile(
     raw_profile_name: str = raw_project.get("profile")  # type: ignore
     profile_renderer = ProfileRenderer(cli_vars)
     profile_name = profile_renderer.render_value(raw_profile_name)
-    profile = Profile.render_from_args(
+    profile = Profile.render(
         profile_renderer, profile_name, threads_override, target_override, profile_name_override
     )
     # Save env_vars encountered in rendering for partial parsing

@@ -404,12 +404,14 @@ class TestProfileFile(BaseFileTest):
 
     def from_args(self, project_profile_name='default', **kwargs):
         kw = {
-            'args': self.args,
             'project_profile_name': project_profile_name,
-            'renderer': empty_profile_renderer()
+            'renderer': empty_profile_renderer(),
+            'threads_override': getattr(self.args, "threads", None),
+            'target_override': getattr(self.args, "target", None),
+            'profile_name_override': getattr(self.args, "profile", None),
         }
         kw.update(kwargs)
-        return dbt.config.Profile.render_from_args(**kw)
+        return dbt.config.Profile.render(**kw)
 
     def test_profile_simple(self):
         profile = self.from_args()
