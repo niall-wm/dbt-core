@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, NoReturn, Union, Type, Iterator, Set
+from typing import Dict, List, NoReturn, Union, Type, Iterator, Set, Any
 
 from dbt.exceptions import raise_dependency_error, InternalException
 
-from dbt.config import Project, RuntimeConfig
-from dbt.config.renderer import DbtProjectYamlRenderer
+from dbt.config import Project
+from dbt.config.renderer import PackageRenderer
 from dbt.deps.base import BasePackage, PinnedPackage, UnpinnedPackage
 from dbt.deps.local import LocalUnpinnedPackage
 from dbt.deps.git import GitUnpinnedPackage
@@ -94,19 +94,19 @@ class PackageListing:
 
 def _check_for_duplicate_project_names(
     final_deps: List[PinnedPackage],
-    config: Project,
-    renderer: DbtProjectYamlRenderer,
+    project: Project,
+    renderer: PackageRenderer,
 ):
     seen: Set[str] = set()
     for package in final_deps:
-        project_name = package.get_project_name(config, renderer)
+        project_name = package.get_project_name(project, renderer)
         if project_name in seen:
             raise_dependency_error(
                 f'Found duplicate project "{project_name}". This occurs when '
                 "a dependency has the same project name as some other "
                 "dependency."
             )
-        elif project_name == config.project_name:
+        elif project_name == project.project_name:
             raise_dependency_error(
                 "Found a dependency with the same name as the root project "
                 f'"{project_name}". Package names must be unique in a project.'
@@ -116,21 +116,24 @@ def _check_for_duplicate_project_names(
 
 
 def resolve_packages(
-    packages: List[PackageContract], config: RuntimeConfig
+    packages: List[PackageContract],
+    project: Project,
+    cli_vars: Dict[str, Any],
 ) -> List[PinnedPackage]:
     pending = PackageListing.from_contracts(packages)
     final = PackageListing()
-    renderer = DbtProjectYamlRenderer(config, config.cli_vars)
+
+    renderer = PackageRenderer(cli_vars)
 
     while pending:
         next_pending = PackageListing()
         # resolve the dependency in question
         for package in pending:
             final.incorporate(package)
-            target = final[package].resolved().fetch_metadata(config, renderer)
+            target = final[package].resolved().fetch_metadata(project, renderer)
             next_pending.update_from(target.packages)
         pending = next_pending
 
     resolved = final.resolved()
-    _check_for_duplicate_project_names(resolved, config, renderer)
+    _check_for_duplicate_project_names(resolved, project, renderer)
     return resolved

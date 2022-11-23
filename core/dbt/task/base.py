@@ -75,10 +75,12 @@ def read_profiles(profiles_dir=None):
 class BaseTask(metaclass=ABCMeta):
     ConfigType: Union[Type[NoneConfig], Type[Project]] = NoneConfig
 
-    def __init__(self, args, config):
+    def __init__(self, args, config, project=None):
         self.args = args
-        self.args.single_threaded = False
         self.config = config
+        if hasattr(config, "args"):
+            self.config.args.single_threaded = False
+        self.project = config if isinstance(config, Project) else project
 
     @classmethod
     def pre_init_hook(cls, args):
@@ -140,13 +142,13 @@ class BaseTask(metaclass=ABCMeta):
         return True
 
 
-def get_nearest_project_dir(args):
+def get_nearest_project_dir(project_dir: Optional[str]) -> str:
     # If the user provides an explicit project directory, use that
     # but don't look at parent directories.
-    if args.project_dir:
-        project_file = os.path.join(args.project_dir, "dbt_project.yml")
+    if project_dir:
+        project_file = os.path.join(project_dir, "dbt_project.yml")
         if os.path.exists(project_file):
-            return args.project_dir
+            return project_dir
         else:
             raise dbt.exceptions.RuntimeException(
                 "fatal: Invalid --project-dir flag. Not a dbt project. "
@@ -168,8 +170,8 @@ def get_nearest_project_dir(args):
     )
 
 
-def move_to_nearest_project_dir(args):
-    nearest_project_dir = get_nearest_project_dir(args)
+def move_to_nearest_project_dir(project_dir: Optional[str]) -> str:
+    nearest_project_dir = get_nearest_project_dir(project_dir)
     os.chdir(nearest_project_dir)
     return nearest_project_dir
 
@@ -183,7 +185,7 @@ class ConfiguredTask(BaseTask):
 
     @classmethod
     def from_args(cls, args):
-        move_to_nearest_project_dir(args)
+        move_to_nearest_project_dir(args.project_dir)
         return super().from_args(args)
 
 

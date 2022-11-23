@@ -15,6 +15,8 @@ from dbt.config import UnsetProfileConfig
 
 
 class CleanTask(BaseTask):
+    # Note: CleanTask is the last task that uses UnsetProfileConfig,
+    # and can be deleted once CleanTask no longer requires it.
     ConfigType = UnsetProfileConfig
 
     def __is_project_path(self, path):
@@ -35,7 +37,7 @@ class CleanTask(BaseTask):
         This function takes all the paths in the target file
         and cleans the project paths that are not protected.
         """
-        move_to_nearest_project_dir(self.args)
+        move_to_nearest_project_dir(self.args.project_dir)
         if (
             "dbt_modules" in self.config.clean_targets
             and self.config.packages_install_path not in self.config.clean_targets
