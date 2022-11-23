@@ -9,7 +9,7 @@ from dbt.cli.flags import Flags
 from dbt.events.functions import setup_event_logger
 from dbt.profiler import profiler
 from dbt.tracking import initialize_from_flags, track_run
-from dbt.config.runtime import load_project
+from dbt.config.runtime import load_project, load_profile
 
 
 def cli_runner():
@@ -74,9 +74,11 @@ def cli(ctx, **kwargs):
     if flags.RECORD_TIMING_INFO:
         ctx.with_resource(profiler(enable=True, outfile=flags.RECORD_TIMING_INFO))
 
-    # TODO need profile to exisit
-    profile = None
-
+    # TODO: not all commands need profile, need to figure out how to do it progmatically
+    profile = load_profile(
+        flags.PROJECT_DIR, flags.VARS, flags.THREADS, flags.TARGET, flags.PROFILE
+    )
+    ctx.obj["profile"] = profile
     # project need profile to render because it requires knowing Target
     ctx.obj["project"] = load_project(flags.PROJECT_DIR, flags.VERSION_CHECK, profile, flags.VARS)
     # Adapter management
