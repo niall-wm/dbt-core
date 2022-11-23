@@ -39,7 +39,7 @@ class Flags:
             invoked_subcommand = getattr(import_module("dbt.cli.main"), ctx.invoked_subcommand)
             invoked_subcommand.allow_extra_args = True
             invoked_subcommand.ignore_unknown_options = True
-            invoked_subcommand_ctx = invoked_subcommand.make_context(None, sys.argv)
+            invoked_subcommand_ctx = invoked_subcommand.make_context(None, ctx.args or sys.argv)
             assign_params(invoked_subcommand_ctx)
 
         # Hard coded flags

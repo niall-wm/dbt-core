@@ -59,6 +59,14 @@ def cli(ctx, **kwargs):
     """
     ctx.obj = {}
     flags = Flags()
+
+    # Version info
+    if flags.VERSION:
+        click.echo(f"`version` called\n ctx.params: {pf(ctx.params)}")
+        return
+    else:
+        del ctx.params["version"]
+
     # Logging
     # N.B. Legacy logger is not supported
     setup_event_logger(
@@ -82,13 +90,6 @@ def cli(ctx, **kwargs):
     ctx.obj["project"] = load_project(flags.PROJECT_DIR, flags.VERSION_CHECK, profile, flags.VARS)
     # Adapter management
     ctx.with_resource(adapter_management())
-
-    # Version info
-    if flags.VERSION:
-        click.echo(f"`version` called\n ctx.params: {pf(ctx.params)}")
-        return
-    else:
-        del ctx.params["version"]
 
 
 # dbt build
