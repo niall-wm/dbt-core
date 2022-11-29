@@ -278,6 +278,17 @@ show = click.option(
     "--show", envvar=None, help="Show a sample of the loaded data in the terminal", is_flag=True
 )
 
+# TODO:  The env var is a correction!
+# The original env var was `DBT_TEST_SINGLE_THREADED`.
+# This broke the existing naming convention.
+# This will need to be communicated as a change to the community!
+single_threaded = click.option(
+    "--single-threaded/--no-single-threaded",
+    envvar="DBT_SINGLE_THREADED",
+    default=False,
+    hidden=True,
+)
+
 skip_profile_setup = click.option(
     "--skip-profile-setup", "-s", envvar=None, help="Skip interative profile setup.", is_flag=True
 )
