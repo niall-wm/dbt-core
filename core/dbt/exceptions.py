@@ -439,20 +439,13 @@ class DuplicateYamlKeyException(CompilationException):
     pass
 
 
+# TODO: this was copied into jinja_exxceptions because it's in the context - eventually remove?
 def raise_compiler_error(msg, node=None) -> NoReturn:
     raise CompilationException(msg, node)
 
 
 def raise_parsing_error(msg, node=None) -> NoReturn:
     raise ParsingException(msg, node)
-
-
-def raise_database_error(msg, node=None) -> NoReturn:
-    raise DatabaseException(msg, node)
-
-
-def raise_dependency_error(msg) -> NoReturn:
-    raise DependencyException(scrub_secrets(msg, env_secrets()))
 
 
 def raise_git_cloning_error(error: CommandResultError) -> NoReturn:
@@ -660,87 +653,9 @@ def materialization_not_available(model, adapter_type):
     )
 
 
-# def missing_materialization(model, adapter_type):
-#     materialization = model.get_materialization()
-
-#     valid_types = "'default'"
-
-#     if adapter_type != "default":
-#         valid_types = "'default' and '{}'".format(adapter_type)
-
-#     raise_compiler_error(
-#         "No materialization '{}' was found for adapter {}! (searched types {})".format(
-#             materialization, adapter_type, valid_types
-#         ),
-#         model,
-#     )
-
-
 def bad_package_spec(repo, spec, error_message):
     msg = "Error checking out spec='{}' for repo {}\n{}".format(spec, repo, error_message)
     raise InternalException(scrub_secrets(msg, env_secrets()))
-
-
-def raise_cache_inconsistent(message):
-    raise InternalException("Cache inconsistency detected: {}".format(message))
-
-
-# def missing_config(model, name):
-#     raise_compiler_error(
-#         "Model '{}' does not define a required config parameter '{}'.".format(
-#             model.unique_id, name
-#         ),
-#         model,
-#     )
-
-
-def missing_relation(relation, model=None):
-    raise_compiler_error("Relation {} not found!".format(relation), model)
-
-
-def raise_dataclass_not_dict(obj):
-    msg = (
-        'The object ("{obj}") was used as a dictionary. This '
-        "capability has been removed from objects of this type."
-    )
-    raise_compiler_error(msg)
-
-
-def relation_wrong_type(relation, expected_type, model=None):
-    raise_compiler_error(
-        (
-            "Trying to create {expected_type} {relation}, "
-            "but it currently exists as a {current_type}. Either "
-            "drop {relation} manually, or run dbt with "
-            "`--full-refresh` and dbt will drop it for you."
-        ).format(relation=relation, current_type=relation.type, expected_type=expected_type),
-        model,
-    )
-
-
-def package_not_found(package_name):
-    raise_dependency_error("Package {} was not found in the package index".format(package_name))
-
-
-def package_version_not_found(
-    package_name, version_range, available_versions, should_version_check
-):
-    base_msg = (
-        "Could not find a matching compatible version for package {}\n"
-        "  Requested range: {}\n"
-        "  Compatible versions: {}\n"
-    )
-    addendum = (
-        (
-            "\n"
-            "  Not shown: package versions incompatible with installed version of dbt-core\n"
-            "  To include them, run 'dbt --no-version-check deps'"
-        )
-        if should_version_check
-        else ""
-    )
-    msg = base_msg.format(package_name, version_range, available_versions) + addendum
-    raise_dependency_error(msg)
 
 
 def invalid_materialization_argument(name, argument):
@@ -764,15 +679,6 @@ class ConnectionException(Exception):
     """
 
     pass
-
-
-def raise_dep_not_found(node, node_description, required_pkg):
-    raise_compiler_error(
-        'Error while parsing {}.\nThe required package "{}" was not found. '
-        "Is the package installed?\nHint: You may need to run "
-        "`dbt deps`.".format(node_description, required_pkg),
-        node=node,
-    )
 
 
 def multiple_matching_relations(kwargs, matches):
@@ -821,90 +727,6 @@ def raise_duplicate_macro_name(node_1, node_2, namespace) -> NoReturn:
     )
 
 
-def raise_duplicate_resource_name(node_1, node_2):
-    duped_name = node_1.name
-    node_type = NodeType(node_1.resource_type)
-    pluralized = (
-        node_type.pluralize()
-        if node_1.resource_type == node_2.resource_type
-        else "resources"  # still raise if ref() collision, e.g. model + seed
-    )
-
-    action = "looking for"
-    # duplicate 'ref' targets
-    if node_type in NodeType.refable():
-        formatted_name = f'ref("{duped_name}")'
-    # duplicate sources
-    elif node_type == NodeType.Source:
-        duped_name = node_1.get_full_source_name()
-        formatted_name = node_1.get_source_representation()
-    # duplicate docs blocks
-    elif node_type == NodeType.Documentation:
-        formatted_name = f'doc("{duped_name}")'
-    # duplicate generic tests
-    elif node_type == NodeType.Test and hasattr(node_1, "test_metadata"):
-        column_name = f'column "{node_1.column_name}" in ' if node_1.column_name else ""
-        model_name = node_1.file_key_name
-        duped_name = f'{node_1.name}" defined on {column_name}"{model_name}'
-        action = "running"
-        formatted_name = "tests"
-    # all other resource types
-    else:
-        formatted_name = duped_name
-
-    # should this be raise_parsing_error instead?
-    raise_compiler_error(
-        f"""
-dbt found two {pluralized} with the name "{duped_name}".
-
-Since these resources have the same name, dbt will be unable to find the correct resource
-when {action} {formatted_name}.
-
-To fix this, change the name of one of these resources:
-- {node_1.unique_id} ({node_1.original_file_path})
-- {node_2.unique_id} ({node_2.original_file_path})
-    """.strip()
-    )
-
-
-def raise_ambiguous_alias(node_1, node_2, duped_name=None):
-    if duped_name is None:
-        duped_name = f"{node_1.database}.{node_1.schema}.{node_1.alias}"
-
-    raise_compiler_error(
-        'dbt found two resources with the database representation "{}".\ndbt '
-        "cannot create two resources with identical database representations. "
-        "To fix this,\nchange the configuration of one of these resources:"
-        "\n- {} ({})\n- {} ({})".format(
-            duped_name,
-            node_1.unique_id,
-            node_1.original_file_path,
-            node_2.unique_id,
-            node_2.original_file_path,
-        )
-    )
-
-
-def raise_ambiguous_catalog_match(unique_id, match_1, match_2):
-    def get_match_string(match):
-        return "{}.{}".format(
-            match.get("metadata", {}).get("schema"),
-            match.get("metadata", {}).get("name"),
-        )
-
-    raise_compiler_error(
-        "dbt found two relations in your warehouse with similar database "
-        "identifiers. dbt\nis unable to determine which of these relations "
-        'was created by the model "{unique_id}".\nIn order for dbt to '
-        "correctly generate the catalog, one of the following relations must "
-        "be deleted or renamed:\n\n - {match_1_s}\n - {match_2_s}".format(
-            unique_id=unique_id,
-            match_1_s=get_match_string(match_1),
-            match_2_s=get_match_string(match_2),
-        )
-    )
-
-
 def raise_patch_targets_not_found(patches):
     patch_list = "\n\t".join(
         "model {} (referenced in path {})".format(p.name, p.original_file_path)
@@ -923,21 +745,6 @@ def _fix_dupe_msg(path_1: str, path_2: str, name: str, type_name: str) -> str:
             f"remove the {type_name} entry for {name} in one of these files:\n"
             f" - {path_1!s}\n{path_2!s}"
         )
-
-
-def raise_duplicate_patch_name(patch_1, existing_patch_path):
-    name = patch_1.name
-    fix = _fix_dupe_msg(
-        patch_1.original_file_path,
-        existing_patch_path,
-        name,
-        "resource",
-    )
-    raise_compiler_error(
-        f"dbt found two schema.yml entries for the same resource named "
-        f"{name}. Resources and their associated columns may only be "
-        f"described a single time. To fix this, {fix}"
-    )
 
 
 def raise_duplicate_macro_patch_name(patch_1, existing_patch_path):
@@ -966,24 +773,12 @@ def raise_duplicate_source_patch_name(patch_1, patch_2):
     )
 
 
-def raise_invalid_property_yml_version(path, issue):
-    raise_compiler_error(
-        "The yml property file at {} is invalid because {}. Please consult the "
-        "documentation for more information on yml property file syntax:\n\n"
-        "https://docs.getdbt.com/reference/configs-and-properties".format(path, issue)
-    )
-
-
 def raise_unrecognized_credentials_type(typename, supported_types):
     raise_compiler_error(
         'Unrecognized credentials type "{}" - supported types are ({})'.format(
             typename, ", ".join('"{}"'.format(t) for t in supported_types)
         )
     )
-
-
-def raise_not_implemented(msg):
-    raise NotImplementedException("ERROR: {}".format(msg))
 
 
 def raise_duplicate_alias(
@@ -1047,3 +842,371 @@ def wrapper(model):
 def wrapped_exports(model):
     wrap = wrapper(model)
     return {name: wrap(export) for name, export in CONTEXT_EXPORTS.items()}
+# adapters exceptions
+class UnexpectedNull(DatabaseException):
+    def __init__(self, field_name, source):
+        self.field_name = field_name
+        self.source = source
+        msg = (
+            f"Expected a non-null value when querying field '{self.field_name}' of table "
+            f" {self.source} but received value 'null' instead"
+        )
+        super().__init__(msg)
+
+
+class UnexpectedNonTimestamp(DatabaseException):
+    def __init__(self, field_name, source, dt):
+        self.field_name = field_name
+        self.source = source
+        self.type_name = type(dt).__name__
+        msg = (
+            f"Expected a timestamp value when querying field '{self.field_name}' of table "
+            f"{self.source} but received value of type '{self.type_name}' instead"
+        )
+        super().__init__(msg)
+
+
+# start new exceptions
+
+
+# deps exceptions
+class MultipleVersionGitDeps(DependencyException):
+    def __init__(self, git, requested):
+        self.git = git
+        self.requested = requested
+        msg = (
+            "git dependencies should contain exactly one version. "
+            f"{self.git} contains: {self.requested}"
+        )
+        super().__init__(msg)
+
+
+class DuplicateProjectDependency(DependencyException):
+    def __init__(self, project_name):
+        self.project_name = project_name
+        msg = (
+            f'Found duplicate project "{self.project_name}". This occurs when '
+            "a dependency has the same project name as some other dependency."
+        )
+        super().__init__(msg)
+
+
+class DuplicateDependencyToRoot(DependencyException):
+    def __init__(self, project_name):
+        self.project_name = project_name
+        msg = (
+            "Found a dependency with the same name as the root project "
+            f'"{self.project_name}". Package names must be unique in a project.'
+            " Please rename one of these packages."
+        )
+        super().__init__(msg)
+
+
+class MismatchedDependencyTypes(DependencyException):
+    def __init__(self, new, old):
+        self.new = new
+        self.old = old
+        msg = (
+            f"Cannot incorporate {self.new} ({self.new.__class__.__name__}) in {self.old} "
+            f"({self.old.__class__.__name__}): mismatched types"
+        )
+        super().__init__(msg)
+
+
+class PackageVersionNotFound(DependencyException):
+    def __init__(self, package_name, version_range, available_versions, should_version_check):
+        self.package_name = package_name
+        self.version_range = version_range
+        self.available_versions = available_versions
+        self.should_version_check = should_version_check
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        base_msg = (
+            "Could not find a matching compatible version for package {}\n"
+            "  Requested range: {}\n"
+            "  Compatible versions: {}\n"
+        )
+        addendum = (
+            (
+                "\n"
+                "  Not shown: package versions incompatible with installed version of dbt-core\n"
+                "  To include them, run 'dbt --no-version-check deps'"
+            )
+            if self.should_version_check
+            else ""
+        )
+        msg = (
+            base_msg.format(self.package_name, self.version_range, self.available_versions)
+            + addendum
+        )
+        return msg
+
+
+class PackageNotFound(DependencyException):
+    def __init__(self, package_name):
+        self.package_name = package_name
+        msg = f"Package {self.package_name} was not found in the package index"
+        super().__init__(msg)
+
+
+# jinja exceptions
+class MissingConfig(CompilationException):
+    def __init__(self, unique_id, name):
+        self.unique_id = unique_id
+        self.name = name
+        msg = (
+            f"Model '{self.unique_id}' does not define a required config parameter '{self.name}'."
+        )
+        super().__init__(msg)
+
+
+class MissingMaterialization(CompilationException):
+    def __init__(self, model, adapter_type):
+        self.model = model
+        self.adapter_type = adapter_type
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        materialization = self.model.get_materialization()
+
+        valid_types = "'default'"
+
+        if self.adapter_type != "default":
+            valid_types = f"'default' and '{self.adapter_type}'"
+
+        msg = f"No materialization '{materialization}' was found for adapter {self.adapter_type}! (searched types {valid_types})"
+        return msg
+
+
+class MissingRelation(CompilationException):
+    def __init__(self, relation, model=None):
+        self.relation = relation
+        self.model = model
+        msg = f"Relation {self.relation} not found!"
+        super().__init__(msg)
+
+
+class AmbiguousAlias(CompilationException):
+    def __init__(self, node_1, node_2, duped_name=None):
+        self.node_1 = node_1
+        self.node_2 = node_2
+        if duped_name is None:
+            self.duped_name = f"{self.node_1.database}.{self.node_1.schema}.{self.node_1.alias}"
+        else:
+            self.duped_name = duped_name
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+
+        msg = (
+            'dbt found two resources with the database representation "{}".\ndbt '
+            "cannot create two resources with identical database representations. "
+            "To fix this,\nchange the configuration of one of these resources:"
+            "\n- {} ({})\n- {} ({})".format(
+                self.duped_name,
+                self.node_1.unique_id,
+                self.node_1.original_file_path,
+                self.node_2.unique_id,
+                self.node_2.original_file_path,
+            )
+        )
+        return msg
+
+
+class AmbiguousCatalogMatch(CompilationException):
+    def __init__(self, unique_id, match_1, match_2):
+        self.unique_id = unique_id
+        self.match_1 = match_1
+        self.match_2 = match_2
+        super().__init__(self.get_message())
+
+    def get_match_string(self, match):
+        return "{}.{}".format(
+            match.get("metadata", {}).get("schema"),
+            match.get("metadata", {}).get("name"),
+        )
+
+    def get_message(self) -> str:
+        msg = (
+            "dbt found two relations in your warehouse with similar database identifiers. "
+            "dbt\nis unable to determine which of these relations was created by the model "
+            f'"{self.unique_id}".\nIn order for dbt to correctly generate the catalog, one '
+            "of the following relations must be deleted or renamed:\n\n - "
+            f"{self.get_match_string(self.match_1)}\n - {self.get_match_string(self.match_2)}"
+        )
+
+        return msg
+
+
+class CacheInconsistency(InternalException):
+    def __init__(self, message):
+        self.message = message
+        msg = f"Cache inconsistency detected: {self.message}"
+        super().__init__(msg)
+
+
+# this is part of the context and also raised in dbt.contratcs.relation.py
+class DataclassNotDict(CompilationException):
+    def __init__(self, obj):
+        self.obj = obj  # TODO: what kind of obj is this?
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = (
+            f'The object ("{self.obj}") was used as a dictionary. This '
+            "capability has been removed from objects of this type."
+        )
+
+        return msg
+
+
+class DependencyNotFound(CompilationException):
+    def __init__(self, node, node_description, required_pkg):
+        self.node = node
+        self.node_description = node_description
+        self.required_pkg = required_pkg
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = (
+            f"Error while parsing {self.node_description}.\nThe required package "
+            f'"{self.required_pkg}" was not found. Is the package installed?\n'
+            "Hint: You may need to run `dbt deps`."
+        )
+
+        return msg
+
+
+class DuplicatePatchPath(CompilationException):
+    def __init__(self, patch_1, existing_patch_path):
+        self.patch_1 = patch_1
+        self.existing_patch_path = existing_patch_path
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        name = self.patch_1.name
+        fix = _fix_dupe_msg(
+            self.patch_1.original_file_path,
+            self.existing_patch_path,
+            name,
+            "resource",
+        )
+        msg = (
+            f"dbt found two schema.yml entries for the same resource named "
+            f"{name}. Resources and their associated columns may only be "
+            f"described a single time. To fix this, {fix}"
+        )
+        return msg
+
+
+# should this inherit ParsingException instead?
+class DuplicateResourceName(CompilationException):
+    def __init__(self, node_1, node_2):
+        self.node_1 = node_1
+        self.node_2 = node_2
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        duped_name = self.node_1.name
+        node_type = NodeType(self.node_1.resource_type)
+        pluralized = (
+            node_type.pluralize()
+            if self.node_1.resource_type == self.node_2.resource_type
+            else "resources"  # still raise if ref() collision, e.g. model + seed
+        )
+
+        action = "looking for"
+        # duplicate 'ref' targets
+        if node_type in NodeType.refable():
+            formatted_name = f'ref("{duped_name}")'
+        # duplicate sources
+        elif node_type == NodeType.Source:
+            duped_name = self.node_1.get_full_source_name()
+            formatted_name = self.node_1.get_source_representation()
+        # duplicate docs blocks
+        elif node_type == NodeType.Documentation:
+            formatted_name = f'doc("{duped_name}")'
+        # duplicate generic tests
+        elif node_type == NodeType.Test and hasattr(self.node_1, "test_metadata"):
+            column_name = (
+                f'column "{self.node_1.column_name}" in ' if self.node_1.column_name else ""
+            )
+            model_name = self.node_1.file_key_name
+            duped_name = f'{self.node_1.name}" defined on {column_name}"{model_name}'
+            action = "running"
+            formatted_name = "tests"
+        # all other resource types
+        else:
+            formatted_name = duped_name
+
+        msg = f"""
+dbt found two {pluralized} with the name "{duped_name}".
+
+Since these resources have the same name, dbt will be unable to find the correct resource
+when {action} {formatted_name}.
+
+To fix this, change the name of one of these resources:
+- {self.node_1.unique_id} ({self.node_1.original_file_path})
+- {self.node_2.unique_id} ({self.node_2.original_file_path})
+    """.strip()
+        return msg
+
+
+class InvalidPropertyYML(CompilationException):
+    def __init__(self, path, issue):
+        self.path = path
+        self.issue = issue
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = (
+            f"The yml property file at {self.path} is invalid because {self.issue}. "
+            "Please consult the documentation for more information on yml property file "
+            "syntax:\n\nhttps://docs.getdbt.com/reference/configs-and-properties"
+        )
+        return msg
+
+
+class PropertyYMLMissingVersion(InvalidPropertyYML):
+    def __init__(self, path):
+        self.path = path
+        self.issue = f"the yml property file {self.path} is missing a version tag"
+        super().__init__()
+
+
+class PropertyYMLVersionNotInt(InvalidPropertyYML):
+    def __init__(self, path, version):
+        self.path = path
+        self.version = version
+        self.issue = (
+            "its 'version:' tag must be an integer (e.g. version: 2)."
+            f" {self.version} is not an integer"
+        )
+        super().__init__()
+
+
+class PropertyYMLInvalidTag(InvalidPropertyYML):
+    def __init__(self, path, version):
+        self.path = path
+        self.version = version
+        self.issue = f"its 'version:' tag is set to {self.version}.  Only 2 is supported"
+        super().__init__()
+
+
+class RelationWrongType(CompilationException):
+    def __init__(self, relation, expected_type, model=None):
+        self.relation = relation
+        self.expected_type = expected_type
+        self.model = model
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = (
+            f"Trying to create {self.expected_type} {self.relation}, "
+            f"but it currently exists as a {self.relation.type}. Either "
+            f"drop {self.relation} manually, or run dbt with "
+            "`--full-refresh` and dbt will drop it for you."
+        )
+
+        return msg

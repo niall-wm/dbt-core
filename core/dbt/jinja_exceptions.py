@@ -1,24 +1,27 @@
 import functools
+from typing import NoReturn
 
 from dbt.events.functions import warn_or_error
+from dbt.events.helpers import env_secrets, scrub_secrets
 from dbt.events.types import JinjaLogWarning
 from dbt.exceptions import (
     RuntimeException,
+    MissingConfig,
+    MissingMaterialization,
+    MissingRelation,
+    AmbiguousAlias,
+    AmbiguousCatalogMatch,
+    InternalException,
+    DataclassNotDict,
     CompilationException,
-    missing_relation,
-    raise_ambiguous_alias,
-    raise_ambiguous_catalog_match,
-    raise_cache_inconsistent,
-    raise_dataclass_not_dict,
-    raise_compiler_error,
-    raise_database_error,
-    raise_dep_not_found,
-    raise_dependency_error,
-    raise_duplicate_patch_name,
-    raise_duplicate_resource_name,
-    raise_invalid_property_yml_version,
-    raise_not_implemented,
-    relation_wrong_type,
+    DatabaseException,
+    DependencyNotFound,
+    DependencyException,
+    DuplicatePatchPath,
+    DuplicateResourceName,
+    InvalidPropertyYML,
+    NotImplementedException,  # TODO: this should be improved to not pass message
+    RelationWrongType,
 )
 
 
@@ -27,40 +30,68 @@ def warn(msg, node=None):
     return ""
 
 
-class MissingConfigException(CompilationException):
-    def __init__(self, unique_id, name):
-        self.unique_id = unique_id
-        self.name = name
-        msg = (
-            f"Model '{self.unique_id}' does not define a required config parameter '{self.name}'."
-        )
-        super().__init__(msg)
+def missing_config(model, name) -> NoReturn:
+    raise MissingConfig(unique_id=model.unique_id, name=name)
 
 
-def missing_config(model, name):
-    raise MissingConfigException(unique_id=model.unique_id, name=name)
+def missing_materialization(model, adapter_type) -> NoReturn:
+    raise MissingMaterialization(model=model, adapter_type=adapter_type)
 
 
-class MissingMaterializationException(CompilationException):
-    def __init__(self, model, adapter_type):
-        self.model = model
-        self.adapter_type = adapter_type
-        super().__init__(self.get_message())
-
-    def get_message(self) -> str:
-        materialization = self.model.get_materialization()
-
-        valid_types = "'default'"
-
-        if self.adapter_type != "default":
-            valid_types = f"'default' and '{self.adapter_type}'"
-
-        msg = f"No materialization '{materialization}' was found for adapter {self.adapter_type}! (searched types {valid_types})"
-        return msg
+def missing_relation(relation, model=None) -> NoReturn:
+    raise MissingRelation(relation, model)
 
 
-def missing_materialization(model, adapter_type):
-    raise MissingConfigException(model=model, adapter_type=adapter_type)
+def raise_ambiguous_alias(node_1, node_2, duped_name=None) -> NoReturn:
+    raise AmbiguousAlias(node_1, node_2, duped_name)
+
+
+def raise_ambiguous_catalog_match(unique_id, match_1, match_2) -> NoReturn:
+    raise AmbiguousCatalogMatch(unique_id, match_1, match_2)
+
+
+def raise_cache_inconsistent(message) -> NoReturn:
+    raise InternalException("Cache inconsistency detected: {}".format(message))
+
+
+def raise_dataclass_not_dict(obj) -> NoReturn:
+    raise DataclassNotDict(obj)
+
+
+def raise_compiler_error(msg, node=None) -> NoReturn:
+    raise CompilationException(msg, node)
+
+
+def raise_database_error(msg, node=None) -> NoReturn:
+    raise DatabaseException(msg, node)
+
+
+def raise_dep_not_found(node, node_description, required_pkg) -> NoReturn:
+    raise DependencyNotFound(node, node_description, required_pkg)
+
+
+def raise_dependency_error(msg) -> NoReturn:
+    raise DependencyException(scrub_secrets(msg, env_secrets()))
+
+
+def raise_duplicate_patch_name(patch_1, existing_patch_path) -> NoReturn:
+    raise DuplicatePatchPath(patch_1, existing_patch_path)
+
+
+def raise_duplicate_resource_name(node_1, node_2) -> NoReturn:
+    raise DuplicateResourceName(node_1, node_2)
+
+
+def raise_invalid_property_yml_version(path, issue) -> NoReturn:
+    raise InvalidPropertyYML(path, issue)
+
+
+def raise_not_implemented(msg):
+    raise NotImplementedException("ERROR: {}".format(msg))
+
+
+def relation_wrong_type(relation, expected_type, model=None):
+    raise RelationWrongType(relation, expected_type, model)
 
 
 # Update this when a new function should be added to the

@@ -9,7 +9,7 @@ from dbt.adapters.reference_keys import (
     _make_msg_from_ref_key,
     _ReferenceKey,
 )
-import dbt.exceptions
+from dbt.exceptions import CacheInconsistency
 from dbt.events.functions import fire_event, fire_event_if
 from dbt.events.types import (
     AddLink,
@@ -150,10 +150,8 @@ class _CachedRelation:
         :raises InternalError: If the new key already exists.
         """
         if new_key in self.referenced_by:
-            dbt.exceptions.raise_cache_inconsistent(
-                'in rename of "{}" -> "{}", new name is in the cache already'.format(
-                    old_key, new_key
-                )
+            raise CacheInconsistency(
+                f'in rename of "{old_key}" -> "{new_key}", new name is in the cache already'
             )
 
         if old_key not in self.referenced_by:
@@ -270,14 +268,14 @@ class RelationsCache:
         if referenced is None:
             return
         if referenced is None:
-            dbt.exceptions.raise_cache_inconsistent(
-                "in add_link, referenced link key {} not in cache!".format(referenced_key)
+            raise CacheInconsistency(
+                f"in add_link, referenced link key {referenced_key} not in cache!"
             )
 
         dependent = self.relations.get(dependent_key)
         if dependent is None:
-            dbt.exceptions.raise_cache_inconsistent(
-                "in add_link, dependent link key {} not in cache!".format(dependent_key)
+            raise CacheInconsistency(
+                f"in add_link, dependent link key {dependent_key} not in cache!"
             )
 
         assert dependent is not None  # we just raised!
@@ -443,10 +441,8 @@ class RelationsCache:
             else:
                 message_addendum = ""
 
-            dbt.exceptions.raise_cache_inconsistent(
-                "in rename, new key {} already in cache: {}{}".format(
-                    new_key, list(self.relations.keys()), message_addendum
-                )
+            raise CacheInconsistency(
+                f"in rename, new key {new_key} already in cache: {list(self.relations.keys())}{message_addendum}"
             )
 
         if old_key not in self.relations:
@@ -505,9 +501,7 @@ class RelationsCache:
             ]
 
         if None in results:
-            dbt.exceptions.raise_cache_inconsistent(
-                "in get_relations, a None relation was found in the cache!"
-            )
+            raise CacheInconsistency("in get_relations, a None relation was found in the cache!")
         return results
 
     def clear(self):

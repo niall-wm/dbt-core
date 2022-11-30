@@ -24,10 +24,10 @@ from dbt.contracts.results import NodeStatus, RunResult, RunStatus, RunningStatu
 from dbt.exceptions import (
     CompilationException,
     InternalException,
+    MissingMaterialization,
     RuntimeException,
     ValidationException,
 )
-from dbt.jinja_exceptions import missing_materialization
 from dbt.events.functions import fire_event, get_invocation_id, info
 from dbt.events.types import (
     DatabaseErrorRunningHook,
@@ -253,7 +253,7 @@ class ModelRunner(CompileRunner):
         )
 
         if materialization_macro is None:
-            missing_materialization(model, self.adapter.type())
+            raise MissingMaterialization(model=model, adapter_type=self.adapter.type())
 
         if "config" not in context:
             raise InternalException(

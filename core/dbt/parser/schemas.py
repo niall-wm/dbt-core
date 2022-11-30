@@ -50,16 +50,18 @@ from dbt.contracts.graph.unparsed import (
     UnparsedSourceDefinition,
 )
 from dbt.exceptions import (
-    validator_error_message,
-    JSONValidationException,
-    raise_invalid_property_yml_version,
-    ValidationException,
-    ParsingException,
-    raise_duplicate_patch_name,
-    raise_duplicate_macro_patch_name,
-    InternalException,
-    raise_duplicate_source_patch_name,
     CompilationException,
+    DuplicatePatchPath,
+    JSONValidationException,
+    InternalException,
+    ParsingException,
+    PropertyYMLInvalidTag,
+    PropertyYMLMissingVersion,
+    PropertyYMLVersionNotInt,
+    ValidationException,
+    validator_error_message,
+    raise_duplicate_macro_patch_name,
+    raise_duplicate_source_patch_name,
 )
 from dbt.events.functions import warn_or_error
 from dbt.events.types import WrongResourceSchemaFile, NoNodeForYamlKey, MacroPatchNotFound
@@ -554,25 +556,16 @@ class SchemaParser(SimpleParser[GenericTestBlock, ParsedGenericTestNode]):
 
 def check_format_version(file_path, yaml_dct) -> None:
     if "version" not in yaml_dct:
-        raise_invalid_property_yml_version(
-            file_path,
-            "the yml property file {} is missing a version tag".format(file_path),
-        )
+        raise PropertyYMLMissingVersion(file_path)
 
     version = yaml_dct["version"]
     # if it's not an integer, the version is malformed, or not
     # set. Either way, only 'version: 2' is supported.
     if not isinstance(version, int):
-        raise_invalid_property_yml_version(
-            file_path,
-            "its 'version:' tag must be an integer (e.g. version: 2)."
-            " {} is not an integer".format(version),
-        )
+        raise PropertyYMLVersionNotInt(file_path, version)
+
     if version != 2:
-        raise_invalid_property_yml_version(
-            file_path,
-            "its 'version:' tag is set to {}.  Only 2 is supported".format(version),
-        )
+        raise PropertyYMLInvalidTag(file_path, version)
 
 
 Parsed = TypeVar("Parsed", UnpatchedSourceDefinition, ParsedNodePatch, ParsedMacroPatch)
@@ -931,7 +924,7 @@ class NodePatchParser(NonSourceParser[NodeTarget, ParsedNodePatch], Generic[Node
         if node:
             if node.patch_path:
                 package_name, existing_file_path = node.patch_path.split("://")
-                raise_duplicate_patch_name(patch, existing_file_path)
+                raise DuplicatePatchPath(patch, existing_file_path)
 
             source_file.append_patch(patch.yaml_key, node.unique_id)
             # re-calculate the node config with the patch config.  Always do this

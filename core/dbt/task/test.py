@@ -24,8 +24,7 @@ from dbt.events.types import (
     LogTestResult,
     LogStartLine,
 )
-from dbt.exceptions import InternalException, invalid_bool_error
-from dbt.jinja_exceptions import missing_materialization
+from dbt.exceptions import InternalException, MissingMaterialization, invalid_bool_error
 from dbt.graph import (
     ResourceTypeSelector,
 )
@@ -101,7 +100,7 @@ class TestRunner(CompileRunner):
         )
 
         if materialization_macro is None:
-            missing_materialization(test, self.adapter.type())
+            raise MissingMaterialization(model=test, adapter_type=self.adapter.type())
 
         if "config" not in context:
             raise InternalException(

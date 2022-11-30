@@ -48,6 +48,7 @@ from dbt.exceptions import (
     InternalException,
     ValidationException,
     RuntimeException,
+    MissingConfig,
     macro_invalid_dispatch_arg,
     raise_compiler_error,
     ref_invalid_args,
@@ -57,7 +58,7 @@ from dbt.exceptions import (
     raise_parsing_error,
     disallow_secret_env_var,
 )
-from dbt.jinja_exceptions import missing_config, wrapped_exports
+from dbt.jinja_exceptions import wrapped_exports
 from dbt.config import IsFQNResource
 from dbt.node_types import NodeType, ModelLanguage
 
@@ -380,7 +381,7 @@ class RuntimeConfigObject(Config):
         else:
             result = self.model.config.get(name, default)
         if result is _MISSING:
-            missing_config(self.model, name)
+            raise MissingConfig(unique_id=self.model.unique_id, name=name)
         return result
 
     def require(self, name, validator=None):

@@ -23,13 +23,14 @@ import agate
 import pytz
 
 from dbt.exceptions import (
-    raise_database_error,
     raise_compiler_error,
     invalid_type_error,
     get_relation_returned_multiple_results,
     InternalException,
     NotImplementedException,
     RuntimeException,
+    UnexpectedNull,
+    UnexpectedNonTimestamp,
 )
 
 from dbt.adapters.protocol import (
@@ -102,18 +103,10 @@ def _utc(dt: Optional[datetime], source: BaseRelation, field_name: str) -> datet
     assume the datetime is already for UTC and add the timezone.
     """
     if dt is None:
-        raise raise_database_error(
-            "Expected a non-null value when querying field '{}' of table "
-            " {} but received value 'null' instead".format(field_name, source)
-        )
+        raise UnexpectedNull(field_name, source)
 
     elif not hasattr(dt, "tzinfo"):
-        raise raise_database_error(
-            "Expected a timestamp value when querying field '{}' of table "
-            "{} but received value of type '{}' instead".format(
-                field_name, source, type(dt).__name__
-            )
-        )
+        raise UnexpectedNonTimestamp(field_name, source, dt)
 
     elif dt.tzinfo:
         return dt.astimezone(pytz.UTC)
