@@ -120,6 +120,7 @@ jobs:
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10"]
         os: [ubuntu-latest]
+        split-group: ["1", "2", "3"]
         include:
           - python-version: 3.8
             os: windows-latest
@@ -128,7 +129,7 @@ jobs:
 
     env:
       TOXENV: integration
-      PYTEST_ADDOPTS: "-v --color=yes -n4 --csv integration_results.csv"
+      PYTEST_ADDOPTS: ${{ format('-v --color=yes -n4 --csv integration_results.csv --splits 3 --group {0}', matrix.split-group) }}
       DBT_INVOCATION_ENV: github-actions
       DBT_TEST_USER_1: dbt_test_user_1
       DBT_TEST_USER_2: dbt_test_user_2
