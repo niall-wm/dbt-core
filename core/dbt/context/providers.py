@@ -49,16 +49,15 @@ from dbt.exceptions import (
     ValidationException,
     RuntimeException,
     macro_invalid_dispatch_arg,
-    missing_config,
     raise_compiler_error,
     ref_invalid_args,
     metric_invalid_args,
     target_not_found,
     ref_bad_context,
-    wrapped_exports,
     raise_parsing_error,
     disallow_secret_env_var,
 )
+from dbt.jinja_exceptions import missing_config, wrapped_exports
 from dbt.config import IsFQNResource
 from dbt.node_types import NodeType, ModelLanguage
 

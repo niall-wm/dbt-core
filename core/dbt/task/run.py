@@ -26,8 +26,8 @@ from dbt.exceptions import (
     InternalException,
     RuntimeException,
     ValidationException,
-    missing_materialization,
 )
+from dbt.jinja_exceptions import missing_materialization
 from dbt.events.functions import fire_event, get_invocation_id, info
 from dbt.events.types import (
     DatabaseErrorRunningHook,

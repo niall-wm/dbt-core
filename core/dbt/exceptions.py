@@ -1,5 +1,4 @@
 import builtins
-import functools
 from typing import NoReturn, Optional, Mapping, Any
 
 from dbt.events.helpers import env_secrets, scrub_secrets
@@ -661,20 +660,20 @@ def materialization_not_available(model, adapter_type):
     )
 
 
-def missing_materialization(model, adapter_type):
-    materialization = model.get_materialization()
+# def missing_materialization(model, adapter_type):
+#     materialization = model.get_materialization()
 
-    valid_types = "'default'"
+#     valid_types = "'default'"
 
-    if adapter_type != "default":
-        valid_types = "'default' and '{}'".format(adapter_type)
+#     if adapter_type != "default":
+#         valid_types = "'default' and '{}'".format(adapter_type)
 
-    raise_compiler_error(
-        "No materialization '{}' was found for adapter {}! (searched types {})".format(
-            materialization, adapter_type, valid_types
-        ),
-        model,
-    )
+#     raise_compiler_error(
+#         "No materialization '{}' was found for adapter {}! (searched types {})".format(
+#             materialization, adapter_type, valid_types
+#         ),
+#         model,
+#     )
 
 
 def bad_package_spec(repo, spec, error_message):
@@ -686,13 +685,13 @@ def raise_cache_inconsistent(message):
     raise InternalException("Cache inconsistency detected: {}".format(message))
 
 
-def missing_config(model, name):
-    raise_compiler_error(
-        "Model '{}' does not define a required config parameter '{}'.".format(
-            model.unique_id, name
-        ),
-        model,
-    )
+# def missing_config(model, name):
+#     raise_compiler_error(
+#         "Model '{}' does not define a required config parameter '{}'.".format(
+#             model.unique_id, name
+#         ),
+#         model,
+#     )
 
 
 def missing_relation(relation, model=None):

@@ -24,7 +24,8 @@ from dbt.events.types import (
     LogTestResult,
     LogStartLine,
 )
-from dbt.exceptions import InternalException, invalid_bool_error, missing_materialization
+from dbt.exceptions import InternalException, invalid_bool_error
+from dbt.jinja_exceptions import missing_materialization
 from dbt.graph import (
     ResourceTypeSelector,
 )
