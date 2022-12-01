@@ -20,7 +20,7 @@ from dbt.exceptions import (
     DuplicatePatchPath,
     DuplicateResourceName,
     InvalidPropertyYML,
-    NotImplementedException,  # TODO: this should be improved to not pass message
+    NotImplementedException,
     RelationWrongType,
 )
 
@@ -50,6 +50,7 @@ def raise_ambiguous_catalog_match(unique_id, match_1, match_2) -> NoReturn:
     raise AmbiguousCatalogMatch(unique_id, match_1, match_2)
 
 
+# TODO: this should be improved to not format message here
 def raise_cache_inconsistent(message) -> NoReturn:
     raise InternalException("Cache inconsistency detected: {}".format(message))
 
@@ -86,11 +87,12 @@ def raise_invalid_property_yml_version(path, issue) -> NoReturn:
     raise InvalidPropertyYML(path, issue)
 
 
-def raise_not_implemented(msg):
+# TODO: this should be improved to not format message here
+def raise_not_implemented(msg) -> NoReturn:
     raise NotImplementedException("ERROR: {}".format(msg))
 
 
-def relation_wrong_type(relation, expected_type, model=None):
+def relation_wrong_type(relation, expected_type, model=None) -> NoReturn:
     raise RelationWrongType(relation, expected_type, model)
 
 

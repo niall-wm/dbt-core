@@ -5,6 +5,25 @@ from dbt.events.helpers import env_secrets, scrub_secrets
 from dbt.events.types import JinjaLogWarning
 from dbt.events.contextvars import get_node_info
 from dbt.node_types import NodeType
+from dbt.jinja_exceptions import (
+    warn,
+    missing_config,
+    missing_materialization,
+    missing_relation,
+    raise_ambiguous_alias,
+    raise_ambiguous_catalog_match,
+    raise_cache_inconsistent,
+    raise_dataclass_not_dict,
+    # raise_compiler_error,
+    raise_database_error,
+    raise_dep_not_found,
+    raise_dependency_error,
+    raise_duplicate_patch_name,
+    raise_duplicate_resource_name,
+    raise_invalid_property_yml_version,
+    raise_not_implemented,
+    relation_wrong_type,
+)
 
 import dbt.dataclass_schema
 
@@ -1210,3 +1229,76 @@ class RelationWrongType(CompilationException):
         )
 
         return msg
+
+
+# These are placeholders to not immediately break app adapters utilizing these functions as exceptions.
+# They will be removed in 1 (or 2?) versions.  Issue to be created to ensure it happens.
+# TODO: add deprecation to functions
+def warn(msg, node=None):  # type: ignore[no-redef] # noqa
+    return warn(msg, node)
+
+
+def missing_config(model, name) -> NoReturn:  # type: ignore[no-redef] # noqa
+    missing_config(model, name)
+
+
+def missing_materialization(model, adapter_type) -> NoReturn:  # type: ignore[no-redef] # noqa
+    missing_materialization(model, adapter_type)
+
+
+def missing_relation(relation, model=None) -> NoReturn:  # type: ignore[no-redef] # noqa
+    missing_relation(relation, model)
+
+
+def raise_ambiguous_alias(node_1, node_2, duped_name=None) -> NoReturn:  # type: ignore[no-redef] # noqa
+    raise_ambiguous_alias(node_1, node_2, duped_name)
+
+
+def raise_ambiguous_catalog_match(unique_id, match_1, match_2) -> NoReturn:  # type: ignore[no-redef] # noqa
+    raise_ambiguous_catalog_match(unique_id, match_1, match_2)
+
+
+def raise_cache_inconsistent(message) -> NoReturn:  # type: ignore[no-redef] # noqa
+    raise_cache_inconsistent(message)
+
+
+def raise_dataclass_not_dict(obj) -> NoReturn:  # type: ignore[no-redef] # noqa
+    raise_dataclass_not_dict(obj)
+
+
+# this is already used all over our code so for now can't do this until it's fully
+# removed from this file.  otherwise casuses recurssion errors.
+# def raise_compiler_error(msg, node=None) -> NoReturn:
+#     raise_compiler_error(msg, node=None)
+
+
+def raise_database_error(msg, node=None) -> NoReturn:  # type: ignore[no-redef] # noqa
+    raise_database_error(msg, node)
+
+
+def raise_dep_not_found(node, node_description, required_pkg) -> NoReturn:  # type: ignore[no-redef] # noqa
+    raise_dep_not_found(node, node_description, required_pkg)
+
+
+def raise_dependency_error(msg) -> NoReturn:  # type: ignore[no-redef] # noqa
+    raise_dependency_error(msg)
+
+
+def raise_duplicate_patch_name(patch_1, existing_patch_path) -> NoReturn:  # type: ignore[no-redef] # noqa
+    raise_duplicate_patch_name(patch_1, existing_patch_path)
+
+
+def raise_duplicate_resource_name(node_1, node_2) -> NoReturn:  # type: ignore[no-redef] # noqa
+    raise_duplicate_resource_name(node_1, node_2)
+
+
+def raise_invalid_property_yml_version(path, issue) -> NoReturn:  # type: ignore[no-redef] # noqa
+    raise_invalid_property_yml_version(path, issue)
+
+
+def raise_not_implemented(msg) -> NoReturn:  # type: ignore[no-redef] # noqa
+    raise_not_implemented(msg)
+
+
+def relation_wrong_type(relation, expected_type, model=None) -> NoReturn:  # type: ignore[no-redef] # noqa
+    relation_wrong_type(relation, expected_type, model)
