@@ -110,7 +110,7 @@ jobs:
           path: unit_results.csv
 
   integration:
-    name: integration test / python ${{ matrix.python-version }} / ${{ matrix.os }} // group ${{ matrix.split-group }}
+    name: integration test / python ${{ matrix.python-version }} / ${{ matrix.os }} / group ${{ matrix.split-group }}
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -124,9 +124,10 @@ jobs:
         include:
           - python-version: 3.8
             os: windows-latest
+            split-group: ["1", "2", "3"]
           - python-version: 3.8
             os: macos-latest
-
+            split-group: ["1", "2", "3"]
     env:
       TOXENV: integration
       DBT_INVOCATION_ENV: github-actions
