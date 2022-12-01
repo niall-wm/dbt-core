@@ -114,7 +114,6 @@ def cleanup_event_logger():
     EVENT_MANAGER.callbacks.clear()
 
 
-
 # This global, and the following two functions for capturing stdout logs are
 # an unpleasant hack we intend to remove as part of API-ification. The GitHub
 # issue #6350 was opened for that work.
