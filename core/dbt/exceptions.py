@@ -458,6 +458,18 @@ class DuplicateYamlKeyException(CompilationException):
     pass
 
 
+class ConnectionException(Exception):
+    """
+    There was a problem with the connection that returned a bad response,
+    timed out, or resulted in a file that is corrupt.
+    """
+
+    pass
+
+
+# TODO: these are all the functins that need to be converted and deprecated
+
+
 # TODO: this was copied into jinja_exxceptions because it's in the context - eventually remove?
 def raise_compiler_error(msg, node=None) -> NoReturn:
     raise CompilationException(msg, node)
@@ -689,15 +701,6 @@ def system_error(operation_name):
         "If this error persists, please create an issue at: \n\n"
         "https://github.com/dbt-labs/dbt-core".format(operation_name)
     )
-
-
-class ConnectionException(Exception):
-    """
-    There was a problem with the connection that returned a bad response,
-    timed out, or resulted in a file that is corrupt.
-    """
-
-    pass
 
 
 def multiple_matching_relations(kwargs, matches):
