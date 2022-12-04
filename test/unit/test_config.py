@@ -88,10 +88,10 @@ model_fqns = frozenset((
 
 class Args:
     def __init__(self, profiles_dir=None, threads=None, profile=None,
-                 cli_vars=None, version_check=None, project_dir=None):
+                 cli_vars=None, version_check=None, project_dir=None, target=None):
         self.profile = profile
-        if threads is not None:
-            self.threads = threads
+        self.threads = threads
+        self.target = target
         if profiles_dir is not None:
             self.profiles_dir = profiles_dir
             flags.PROFILES_DIR = profiles_dir
