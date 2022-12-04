@@ -282,6 +282,8 @@ show = click.option(
 # The original env var was `DBT_TEST_SINGLE_THREADED`.
 # This broke the existing naming convention.
 # This will need to be communicated as a change to the community!
+#
+# N.B. This flag is only used for testing, hence it's hidden from help text.
 single_threaded = click.option(
     "--single-threaded/--no-single-threaded",
     envvar="DBT_SINGLE_THREADED",

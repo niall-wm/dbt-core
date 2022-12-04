@@ -6,11 +6,11 @@ import click
 from dbt.adapters.factory import adapter_management
 from dbt.cli import params as p
 from dbt.cli.flags import Flags
+from dbt.config.runtime import load_project, load_profile
 from dbt.events.functions import setup_event_logger
 from dbt.profiler import profiler
-from dbt.tracking import initialize_from_flags, track_run
-from dbt.config.runtime import load_project
 from dbt.task.deps import DepsTask
+from dbt.tracking import initialize_from_flags, track_run
 
 
 def cli_runner():
@@ -46,6 +46,7 @@ def cli_runner():
 @p.printer_width
 @p.quiet
 @p.record_timing_info
+@p.single_threaded
 @p.static_parser
 @p.use_colors
 @p.use_experimental_parser
@@ -57,8 +58,9 @@ def cli(ctx, **kwargs):
     """An ELT tool for managing your SQL transformations and data models.
     For more documentation on these commands, visit: docs.getdbt.com
     """
-    ctx.obj = {}
+    # Get primatives
     flags = Flags()
+
     # Logging
     # N.B. Legacy logger is not supported
     setup_event_logger(
@@ -67,6 +69,7 @@ def cli(ctx, **kwargs):
         flags.USE_COLORS,
         flags.DEBUG,
     )
+
     # Tracking
     initialize_from_flags(flags.ANONYMOUS_USAGE_STATS, flags.PROFILES_DIR)
     ctx.with_resource(track_run(run_command=ctx.invoked_subcommand))
@@ -75,11 +78,6 @@ def cli(ctx, **kwargs):
     if flags.RECORD_TIMING_INFO:
         ctx.with_resource(profiler(enable=True, outfile=flags.RECORD_TIMING_INFO))
 
-    # TODO need profile to exisit
-    profile = None
-
-    # project need profile to render because it requires knowing Target
-    ctx.obj["project"] = load_project(flags.PROJECT_DIR, flags.VERSION_CHECK, profile, flags.VARS)
     # Adapter management
     ctx.with_resource(adapter_management())
 
@@ -87,8 +85,20 @@ def cli(ctx, **kwargs):
     if flags.VERSION:
         click.echo(f"`version` called\n ctx.params: {pf(ctx.params)}")
         return
-    else:
-        del ctx.params["version"]
+
+    # Profile
+    profile = load_profile(
+        flags.PROJECT_DIR, flags.VARS, flags.PROFILE, flags.TARGET, flags.THREADS
+    )
+
+    # Project
+    project = load_project(flags.PROJECT_DIR, flags.VERSION_CHECK, profile, flags.VARS)
+
+    # Context for downstream commands
+    ctx.obj = {}
+    ctx.obj["flags"] = flags
+    ctx.obj["profile"] = profile
+    ctx.obj["project"] = project
 
 
 # dbt build
