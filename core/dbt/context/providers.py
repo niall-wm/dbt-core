@@ -1217,7 +1217,7 @@ class ProviderContext(ManifestContext):
         if return_value is not None:
             # Save the env_var value in the manifest and the var name in the source_file.
             # If this is compiling, do not save because it's irrelevant to parsing.
-            if self.model and not hasattr(self.model, "compiled"):
+            if self.model and self.model.compiled is False:
                 # If the environment variable is set from a default, store a string indicating
                 # that so we can skip partial parsing.  Otherwise the file will be scheduled for
                 # reparsing. If the default changes, the file will have been updated and therefore
