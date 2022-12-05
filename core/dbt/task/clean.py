@@ -21,9 +21,6 @@ from dbt.task.base import (
 
 
 class CleanTask(BaseTask):
-    # Note: CleanTask is the last task that uses UnsetProfileConfig,
-    # and can be deleted once CleanTask no longer requires it.
-
     def run(self):
         """
         This function takes all the paths in the target file
@@ -49,7 +46,6 @@ class CleanTask(BaseTask):
     def from_project(cls, project: Project, cli_vars: Dict[str, Any]) -> "CleanTask":
         return cls(cli_vars, project)
 
-    # TODO: remove after tasks no longer require a from_args method
     @classmethod
     def from_args(cls, args) -> "CleanTask":
         nearest_project_dir: str = get_nearest_project_dir(args.project_dir)
