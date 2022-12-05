@@ -5,8 +5,12 @@ from queue import PriorityQueue
 from typing import Dict, Set, List, Generator, Optional
 
 from .graph import UniqueId
-from dbt.contracts.graph.parsed import ParsedSourceDefinition, ParsedExposure, ParsedMetric
-from dbt.contracts.graph.compiled import GraphMemberNode
+from dbt.contracts.graph.parsed import (
+    ParsedSourceDefinition,
+    ParsedExposure,
+    ParsedMetric,
+    GraphMemberNode,
+)
 from dbt.contracts.graph.manifest import Manifest
 from dbt.node_types import NodeType
 

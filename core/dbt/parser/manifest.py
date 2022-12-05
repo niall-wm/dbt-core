@@ -53,7 +53,6 @@ from dbt.context.providers import ParseProvider
 from dbt.contracts.files import FileHash, ParseFileType, SchemaSourceFile
 from dbt.parser.read_files import read_files, load_source_file
 from dbt.parser.partial import PartialParsing, special_override_macros
-from dbt.contracts.graph.compiled import ManifestNode
 from dbt.contracts.graph.manifest import (
     Manifest,
     Disabled,
@@ -68,6 +67,7 @@ from dbt.contracts.graph.parsed import (
     ColumnInfo,
     ParsedExposure,
     ParsedMetric,
+    ManifestNode,
 )
 from dbt.contracts.util import Writable
 from dbt.exceptions import (

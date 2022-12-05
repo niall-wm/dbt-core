@@ -1,6 +1,5 @@
-from dbt.contracts.graph.manifest import CompileResultNode
 from dbt.contracts.graph.unparsed import FreshnessThreshold
-from dbt.contracts.graph.parsed import ParsedSourceDefinition
+from dbt.contracts.graph.parsed import ParsedSourceDefinition, ResultNode
 from dbt.contracts.util import (
     BaseArtifactMetadata,
     ArtifactMixin,
@@ -145,7 +144,7 @@ class BaseResult(dbtClassMixin):
 
 @dataclass
 class NodeResult(BaseResult):
-    node: CompileResultNode
+    node: ResultNode
 
 
 @dataclass

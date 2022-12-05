@@ -100,6 +100,38 @@ class MacroDependsOn(dbtClassMixin, Replaceable):
 
 
 @dataclass
+class InjectedCTE(dbtClassMixin, Replaceable):
+    id: str
+    sql: str
+
+
+@dataclass
+class CompiledNode:
+    compiled_code: Optional[str] = None
+    extra_ctes_injected: bool = False
+    extra_ctes: List[InjectedCTE] = field(default_factory=list)
+    relation_name: Optional[str] = None
+    _pre_injected_sql: Optional[str] = None
+
+    def set_cte(self, cte_id: str, sql: str):
+        """This is the equivalent of what self.extra_ctes[cte_id] = sql would
+        do if extra_ctes were an OrderedDict
+        """
+        for cte in self.extra_ctes:
+            if cte.id == cte_id:
+                cte.sql = sql
+                break
+        else:
+            self.extra_ctes.append(InjectedCTE(id=cte_id, sql=sql))
+
+    def __post_serialize__(self, dct):
+        dct = super().__post_serialize__(dct)
+        if "_pre_injected_sql" in dct:
+            del dct["_pre_injected_sql"]
+        return dct
+
+
+@dataclass
 class DependsOn(MacroDependsOn):
     nodes: List[str] = field(default_factory=list)
 
@@ -213,7 +245,7 @@ class NodeInfoMixin:
 
 
 @dataclass
-class ParsedNodeDefaults(NodeInfoMixin, ParsedNodeMandatory):
+class ParsedNodeDefaults(NodeInfoMixin, CompiledNode, ParsedNodeMandatory):
     tags: List[str] = field(default_factory=list)
     refs: List[List[str]] = field(default_factory=list)
     sources: List[List[str]] = field(default_factory=list)
@@ -224,6 +256,7 @@ class ParsedNodeDefaults(NodeInfoMixin, ParsedNodeMandatory):
     meta: Dict[str, Any] = field(default_factory=dict)
     docs: Docs = field(default_factory=Docs)
     patch_path: Optional[str] = None
+    compiled: bool = False
     compiled_path: Optional[str] = None
     build_path: Optional[str] = None
     deferred: bool = False
@@ -418,7 +451,6 @@ def same_seeds(first: ParsedNode, second: ParsedNode) -> bool:
 
 @dataclass
 class ParsedSeedNode(ParsedNode):
-    # keep this in sync with CompiledSeedNode!
     resource_type: NodeType = field(metadata={"restrict": [NodeType.Seed]})
     config: SeedConfig = field(default_factory=SeedConfig)
     # seeds need the root_path because the contents are not loaded initially
@@ -463,7 +495,6 @@ class ParsedSingularTestNode(ParsedNode):
 
 @dataclass
 class ParsedGenericTestNode(ParsedNode, HasTestMetadata):
-    # keep this in sync with CompiledGenericTestNode!
     resource_type: NodeType = field(metadata={"restrict": [NodeType.Test]})
     column_name: Optional[str] = None
     file_key_name: Optional[str] = None
@@ -928,7 +959,7 @@ class ParsedMetric(UnparsedBaseNode, HasUniqueID, HasFqn):
         )
 
 
-ManifestNodes = Union[
+ManifestNode = Union[
     ParsedAnalysisNode,
     ParsedSingularTestNode,
     ParsedHookNode,
@@ -940,6 +971,17 @@ ManifestNodes = Union[
     ParsedSnapshotNode,
 ]
 
+ResultNode = Union[
+    ManifestNode,
+    ParsedSourceDefinition,
+]
+
+GraphMemberNode = Union[
+    ResultNode,
+    ParsedExposure,
+    ParsedMetric,
+]
+
 
 ParsedResource = Union[
     ParsedDocumentation,
@@ -948,4 +990,9 @@ ParsedResource = Union[
     ParsedExposure,
     ParsedMetric,
     ParsedSourceDefinition,
+]
+
+ParsedTestNode = Union[
+    ParsedSingularTestNode,
+    ParsedGenericTestNode,
 ]

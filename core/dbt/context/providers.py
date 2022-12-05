@@ -28,17 +28,14 @@ from .macros import MacroNamespaceBuilder, MacroNamespace
 from .manifest import ManifestContext
 from dbt.contracts.connection import AdapterResponse
 from dbt.contracts.graph.manifest import Manifest, Disabled
-from dbt.contracts.graph.compiled import (
-    CompiledResource,
-    CompiledSeedNode,
-    ManifestNode,
-)
 from dbt.contracts.graph.parsed import (
     ParsedMacro,
     ParsedExposure,
     ParsedMetric,
     ParsedSeedNode,
     ParsedSourceDefinition,
+    ParsedResource,
+    ManifestNode,
 )
 from dbt.contracts.graph.metrics import MetricReference, ResolvedMetricReference
 from dbt.events.functions import get_metadata_vars
@@ -584,9 +581,9 @@ class ModelConfiguredVar(Var):
         self,
         context: Dict[str, Any],
         config: RuntimeConfig,
-        node: CompiledResource,
+        node: ParsedResource,
     ) -> None:
-        self._node: CompiledResource
+        self._node: ParsedResource
         self._config: RuntimeConfig = config
         super().__init__(context, config.cli_vars, node=node)
 
@@ -799,7 +796,7 @@ class ProviderContext(ManifestContext):
 
     @contextmember
     def load_agate_table(self) -> agate.Table:
-        if not isinstance(self.model, (ParsedSeedNode, CompiledSeedNode)):
+        if not isinstance(self.model, ParsedSeedNode):
             raise_compiler_error(
                 "can only load_agate_table for seeds (got a {})".format(self.model.resource_type)
             )

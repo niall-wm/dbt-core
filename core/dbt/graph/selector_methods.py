@@ -7,12 +7,6 @@ from dbt.dataclass_schema import StrEnum
 
 from .graph import UniqueId
 
-from dbt.contracts.graph.compiled import (
-    CompiledSingularTestNode,
-    CompiledGenericTestNode,
-    CompileResultNode,
-    ManifestNode,
-)
 from dbt.contracts.graph.manifest import Manifest, WritableManifest
 from dbt.contracts.graph.parsed import (
     HasTestMetadata,
@@ -21,6 +15,8 @@ from dbt.contracts.graph.parsed import (
     ParsedMetric,
     ParsedGenericTestNode,
     ParsedSourceDefinition,
+    ResultNode,
+    ManifestNode,
 )
 from dbt.contracts.state import PreviousState
 from dbt.exceptions import (
@@ -139,7 +135,7 @@ class SelectorMethod(metaclass=abc.ABCMeta):
 
     def configurable_nodes(
         self, included_nodes: Set[UniqueId]
-    ) -> Iterator[Tuple[UniqueId, CompileResultNode]]:
+    ) -> Iterator[Tuple[UniqueId, ResultNode]]:
         yield from chain(self.parsed_nodes(included_nodes), self.source_nodes(included_nodes))
 
     def non_source_nodes(
@@ -392,19 +388,19 @@ class TestNameSelectorMethod(SelectorMethod):
 
 class TestTypeSelectorMethod(SelectorMethod):
     def search(self, included_nodes: Set[UniqueId], selector: str) -> Iterator[UniqueId]:
-        search_types: Tuple[Type, ...]
+        search_type: Type
         # continue supporting 'schema' + 'data' for backwards compatibility
         if selector in ("generic", "schema"):
-            search_types = (ParsedGenericTestNode, CompiledGenericTestNode)
+            search_type = ParsedGenericTestNode
         elif selector in ("singular", "data"):
-            search_types = (ParsedSingularTestNode, CompiledSingularTestNode)
+            search_type = ParsedSingularTestNode
         else:
             raise RuntimeException(
                 f'Invalid test type selector {selector}: expected "generic" or ' '"singular"'
             )
 
         for node, real_node in self.parsed_nodes(included_nodes):
-            if isinstance(real_node, search_types):
+            if isinstance(real_node, search_type):
                 yield node
 
 

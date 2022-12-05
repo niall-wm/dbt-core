@@ -2,7 +2,6 @@ from collections.abc import Hashable
 from dataclasses import dataclass
 from typing import Optional, TypeVar, Any, Type, Dict, Union, Iterator, Tuple, Set
 
-from dbt.contracts.graph.compiled import CompiledNode
 from dbt.contracts.graph.parsed import ParsedSourceDefinition, ParsedNode
 from dbt.contracts.relation import (
     RelationType,
@@ -209,7 +208,7 @@ class BaseRelation(FakeAPIObject, Hashable):
     def create_ephemeral_from_node(
         cls: Type[Self],
         config: HasQuoting,
-        node: Union[ParsedNode, CompiledNode],
+        node: ParsedNode,
     ) -> Self:
         # Note that ephemeral models are based on the name.
         identifier = cls.add_ephemeral_prefix(node.name)
@@ -222,7 +221,7 @@ class BaseRelation(FakeAPIObject, Hashable):
     def create_from_node(
         cls: Type[Self],
         config: HasQuoting,
-        node: Union[ParsedNode, CompiledNode],
+        node: ParsedNode,
         quote_policy: Optional[Dict[str, bool]] = None,
         **kwargs: Any,
     ) -> Self:
@@ -243,7 +242,7 @@ class BaseRelation(FakeAPIObject, Hashable):
     def create_from(
         cls: Type[Self],
         config: HasQuoting,
-        node: Union[CompiledNode, ParsedNode, ParsedSourceDefinition],
+        node: Union[ParsedNode, ParsedSourceDefinition],
         **kwargs: Any,
     ) -> Self:
         if node.resource_type == NodeType.Source:
@@ -253,10 +252,9 @@ class BaseRelation(FakeAPIObject, Hashable):
                 )
             return cls.create_from_source(node, **kwargs)
         else:
-            if not isinstance(node, (ParsedNode, CompiledNode)):
+            if not isinstance(node, (ParsedNode)):
                 raise InternalException(
-                    "type mismatch, expected ParsedNode or CompiledNode but "
-                    "got {}".format(type(node))
+                    "type mismatch, expected ParsedNode but " "got {}".format(type(node))
                 )
             return cls.create_from_node(config, node, **kwargs)
 

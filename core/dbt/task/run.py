@@ -17,9 +17,8 @@ from dbt import utils
 from dbt.adapters.base import BaseRelation
 from dbt.clients.jinja import MacroGenerator
 from dbt.context.providers import generate_runtime_model_context
-from dbt.contracts.graph.compiled import CompileResultNode
 from dbt.contracts.graph.model_config import Hook
-from dbt.contracts.graph.parsed import ParsedHookNode
+from dbt.contracts.graph.parsed import ParsedHookNode, ResultNode
 from dbt.contracts.results import NodeStatus, RunResult, RunStatus, RunningStatus, BaseResult
 from dbt.exceptions import (
     CompilationException,
@@ -84,7 +83,7 @@ def _hook_list() -> List[ParsedHookNode]:
 
 
 def get_hooks_by_tags(
-    nodes: Iterable[CompileResultNode],
+    nodes: Iterable[ResultNode],
     match_tags: Set[str],
 ) -> List[ParsedHookNode]:
     matched_nodes = []

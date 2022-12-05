@@ -16,19 +16,12 @@ from typing import (
     TypeVar,
     Callable,
     Generic,
-    cast,
     AbstractSet,
     ClassVar,
 )
 from typing_extensions import Protocol
 from uuid import UUID
 
-from dbt.contracts.graph.compiled import (
-    CompileResultNode,
-    ManifestNode,
-    NonSourceCompiledNode,
-    GraphMemberNode,
-)
 from dbt.contracts.graph.parsed import (
     ParsedMacro,
     ParsedDocumentation,
@@ -38,7 +31,9 @@ from dbt.contracts.graph.parsed import (
     ParsedMetric,
     HasUniqueID,
     UnpatchedSourceDefinition,
-    ManifestNodes,
+    ManifestNode,
+    GraphMemberNode,
+    ResultNode,
 )
 from dbt.contracts.graph.unparsed import SourcePatch
 from dbt.contracts.files import SourceFile, SchemaSourceFile, FileHash, AnySourceFile
@@ -658,7 +653,7 @@ class Manifest(MacroMethods, DataClassMessagePackMixin, dbtClassMixin):
         obj._lock = flags.MP_CONTEXT.Lock()
         return obj
 
-    def sync_update_node(self, new_node: NonSourceCompiledNode) -> NonSourceCompiledNode:
+    def sync_update_node(self, new_node: ManifestNode) -> ManifestNode:
         """update the node with a lock. The only time we should want to lock is
         when compiling an ephemeral ancestor of a node at runtime, because
         multiple threads could be just-in-time compiling the same ephemeral
@@ -671,8 +666,8 @@ class Manifest(MacroMethods, DataClassMessagePackMixin, dbtClassMixin):
         with self._lock:
             existing = self.nodes[new_node.unique_id]
             if getattr(existing, "compiled", False):
-                # already compiled -> must be a NonSourceCompiledNode
-                return cast(NonSourceCompiledNode, existing)
+                # already compiled
+                return existing
             _update_into(self.nodes, new_node)
             return new_node
 
@@ -1086,12 +1081,12 @@ class Manifest(MacroMethods, DataClassMessagePackMixin, dbtClassMixin):
         self.sources[source.unique_id] = source  # type: ignore
         source_file.sources.append(source.unique_id)
 
-    def add_node_nofile(self, node: ManifestNodes):
+    def add_node_nofile(self, node: ManifestNode):
         # nodes can't be overwritten!
         _check_duplicates(node, self.nodes)
         self.nodes[node.unique_id] = node
 
-    def add_node(self, source_file: AnySourceFile, node: ManifestNodes, test_from=None):
+    def add_node(self, source_file: AnySourceFile, node: ManifestNode, test_from=None):
         self.add_node_nofile(node)
         if isinstance(source_file, SchemaSourceFile):
             if isinstance(node, ParsedGenericTestNode):
@@ -1121,7 +1116,7 @@ class Manifest(MacroMethods, DataClassMessagePackMixin, dbtClassMixin):
         else:
             self.disabled[node.unique_id] = [node]
 
-    def add_disabled(self, source_file: AnySourceFile, node: CompileResultNode, test_from=None):
+    def add_disabled(self, source_file: AnySourceFile, node: ResultNode, test_from=None):
         self.add_disabled_nofile(node)
         if isinstance(source_file, SchemaSourceFile):
             if isinstance(node, ParsedGenericTestNode):
@@ -1212,7 +1207,7 @@ class WritableManifest(ArtifactMixin):
     selectors: Mapping[UniqueID, Any] = field(
         metadata=dict(description=("The selectors defined in selectors.yml"))
     )
-    disabled: Optional[Mapping[UniqueID, List[CompileResultNode]]] = field(
+    disabled: Optional[Mapping[UniqueID, List[ResultNode]]] = field(
         metadata=dict(description="A mapping of the disabled nodes in the target")
     )
     parent_map: Optional[NodeEdgeMap] = field(

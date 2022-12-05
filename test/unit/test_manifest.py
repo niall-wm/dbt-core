@@ -33,7 +33,6 @@ from dbt.contracts.graph.unparsed import (
     MetricTime
 )
 
-from dbt.contracts.graph.compiled import CompiledModelNode
 from dbt.events.functions import reset_metadata_vars
 
 from dbt.node_types import NodeType
@@ -586,7 +585,7 @@ class MixedManifestTest(unittest.TestCase):
         })
 
         self.nested_nodes = {
-            'model.snowplow.events': CompiledModelNode(
+            'model.snowplow.events': ParsedModelNode(
                 name='events',
                 database='dbt',
                 schema='analytics',
@@ -612,7 +611,7 @@ class MixedManifestTest(unittest.TestCase):
                 extra_ctes=[],
                 checksum=FileHash.empty(),
             ),
-            'model.root.events': CompiledModelNode(
+            'model.root.events': ParsedModelNode(
                 name='events',
                 database='dbt',
                 schema='analytics',
