@@ -689,24 +689,19 @@ def invalid_materialization_argument(name, argument):
     )
 
 
-def system_error(operation_name):
-    raise_compiler_error(
-        "dbt encountered an error when attempting to {}. "
-        "If this error persists, please create an issue at: \n\n"
-        "https://github.com/dbt-labs/dbt-core".format(operation_name)
-    )
+# client level exceptions
+class SymbolicLinkError(CompilationException):
+    def __init__(self):
+        super().__init__(self.get_message())
 
+    def get_message(self) -> str:
+        msg = (
+            "dbt encountered an error when attempting to create a symbolic link. "
+            "If this error persists, please create an issue at: \n\n"
+            "https://github.com/dbt-labs/dbt-core"
+        )
 
-def multiple_matching_relations(kwargs, matches):
-    raise_compiler_error(
-        "get_relation returned more than one relation with the given args. "
-        "Please specify a database or schema to narrow down the result set."
-        "\n{}\n\n{}".format(kwargs, matches)
-    )
-
-
-def get_relation_returned_multiple_results(kwargs, matches):
-    multiple_matching_relations(kwargs, matches)
+        return msg
 
 
 # context level exceptions
@@ -798,6 +793,21 @@ class DuplicateAlias(AliasException):
 
 
 # adapters exceptions
+class RelationReturnedMultipleResults(CompilationException):
+    def __init__(self, kwargs, matches):
+        self.kwargs = kwargs
+        self.matches = matches
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = (
+            "get_relation returned more than one relation with the given args. "
+            "Please specify a database or schema to narrow down the result set."
+            f"\n{self.kwargs}\n\n{self.matches}"
+        )
+        return msg
+
+
 class ApproximateMatch(CompilationException):
     def __init__(self, target, relation):
         self.target = target
@@ -1283,14 +1293,27 @@ def approximate_relation_match(target, relation):
     raise ApproximateMatch(target, relation)
 
 
+def get_relation_returned_multiple_results(kwargs, matches):
+    raise RelationReturnedMultipleResults(kwargs, matches)
+
+
+def system_error(operation_name):
+    # Note: This was converted for core to use SymbolicLinkError because it's the only way it was used. Maintaining flexibility here for now.
+    msg = (
+        f"dbt encountered an error when attempting to {operation_name}. "
+        "If this error persists, please create an issue at: \n\n"
+        "https://github.com/dbt-labs/dbt-core"
+    )
+    raise CompilationException(msg)
+
+
 # These are the exceptions functions that were not called within dbt-core but will remain here but deprecated to give a chance to rework
 # TODO: is this valid?  Should I create a special exception class for this?
 def raise_unrecognized_credentials_type(typename, supported_types):
-    raise_compiler_error(
-        'Unrecognized credentials type "{}" - supported types are ({})'.format(
-            typename, ", ".join('"{}"'.format(t) for t in supported_types)
-        )
+    msg = 'Unrecognized credentials type "{}" - supported types are ({})'.format(
+        typename, ", ".join('"{}"'.format(t) for t in supported_types)
     )
+    raise CompilationException(msg)
 
 
 def raise_patch_targets_not_found(patches):
@@ -1298,6 +1321,9 @@ def raise_patch_targets_not_found(patches):
         "model {} (referenced in path {})".format(p.name, p.original_file_path)
         for p in patches.values()
     )
-    raise_compiler_error(
-        "dbt could not find models for the following patches:\n\t{}".format(patch_list)
-    )
+    msg = f"dbt could not find models for the following patches:\n\t{patch_list}"
+    raise CompilationException(msg)
+
+
+def multiple_matching_relations(kwargs, matches):
+    raise RelationReturnedMultipleResults(kwargs, matches)
