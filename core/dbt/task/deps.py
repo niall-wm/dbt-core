@@ -1,15 +1,11 @@
 from typing import Dict, Any
 
-from dbt import flags
-
 import dbt.utils
 import dbt.deprecations
 import dbt.exceptions
 
-from dbt.config.profile import read_user_config
-from dbt.config.runtime import load_project, UnsetProfile
+from dbt.config.runtime import get_project_and_cli_vars_from_args
 from dbt.config.renderer import DbtProjectYamlRenderer
-from dbt.config.utils import parse_cli_vars
 from dbt.deps.base import downloads_directory
 from dbt.deps.resolver import resolve_packages
 
@@ -99,25 +95,11 @@ class DepsTask(BaseTask):
                 fire_event(DepsNotifyUpdatesAvailable(packages=packages_to_upgrade))
 
     @classmethod
-    def _get_unset_profile(cls) -> UnsetProfile:
-        profile = UnsetProfile()
-        # The profile (for warehouse connection) is not needed, but we want
-        # to get the UserConfig, which is also in profiles.yml
-        user_config = read_user_config(flags.PROFILES_DIR)
-        profile.user_config = user_config
-        return profile
-
-    @classmethod
     def from_args(cls, args):
         # deps needs to move to the project directory, as it does put files
         # into the modules directory
         nearest_project_dir = move_to_nearest_project_dir(args.project_dir)
-
-        cli_vars: Dict[str, Any] = parse_cli_vars(getattr(args, "vars", "{}"))
-        project_root: str = args.project_dir or nearest_project_dir
-        profile: UnsetProfile = cls._get_unset_profile()
-        project = load_project(project_root, args.version_check, profile, cli_vars)
-
+        project, cli_vars = get_project_and_cli_vars_from_args(args, nearest_project_dir)
         return cls(args, project, cli_vars)
 
     @classmethod
