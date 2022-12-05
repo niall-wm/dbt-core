@@ -6,11 +6,13 @@ import click
 from dbt.adapters.factory import adapter_management
 from dbt.cli import params as p
 from dbt.cli.flags import Flags
+from dbt.config import RuntimeConfig
+from dbt.config.runtime import load_project, load_profile
 from dbt.events.functions import setup_event_logger
 from dbt.profiler import profiler
-from dbt.tracking import initialize_from_flags, track_run
-from dbt.config.runtime import load_project
 from dbt.task.deps import DepsTask
+from dbt.task.run import RunTask
+from dbt.tracking import initialize_from_flags, track_run
 
 
 def cli_runner():
@@ -57,8 +59,10 @@ def cli(ctx, **kwargs):
     """An ELT tool for managing your SQL transformations and data models.
     For more documentation on these commands, visit: docs.getdbt.com
     """
-    ctx.obj = {}
+
+    # Get primatives
     flags = Flags()
+
     # Logging
     # N.B. Legacy logger is not supported
     setup_event_logger(
@@ -75,11 +79,6 @@ def cli(ctx, **kwargs):
     if flags.RECORD_TIMING_INFO:
         ctx.with_resource(profiler(enable=True, outfile=flags.RECORD_TIMING_INFO))
 
-    # TODO need profile to exisit
-    profile = None
-
-    # project need profile to render because it requires knowing Target
-    ctx.obj["project"] = load_project(flags.PROJECT_DIR, flags.VERSION_CHECK, profile, flags.VARS)
     # Adapter management
     ctx.with_resource(adapter_management())
 
@@ -87,8 +86,20 @@ def cli(ctx, **kwargs):
     if flags.VERSION:
         click.echo(f"`version` called\n ctx.params: {pf(ctx.params)}")
         return
-    else:
-        del ctx.params["version"]
+    
+    # Profile
+    profile = load_profile(
+        flags.PROJECT_DIR, flags.VARS, flags.PROFILE, flags.TARGET, flags.THREADS
+    )
+
+    # Project
+    project = load_project(flags.PROJECT_DIR, flags.VERSION_CHECK, profile, flags.VARS)
+
+    # Context for downstream commands
+    ctx.obj = {}
+    ctx.obj["flags"] = flags
+    ctx.obj["profile"] = profile
+    ctx.obj["project"] = project
 
 
 # dbt build
@@ -314,8 +325,12 @@ def parse(ctx, **kwargs):
 @p.version_check
 def run(ctx, **kwargs):
     """Compile SQL and execute against the current target database."""
-    flags = Flags()
-    click.echo(f"`{inspect.stack()[0][3]}` called\n flags: {flags}")
+
+    config = RuntimeConfig.from_parts(ctx.obj["project"], ctx.obj["profile"], ctx.obj["flags"])
+
+    task = RunTask(ctx.obj["flags"], config)
+
+    task.run()
 
 
 # dbt run operation
