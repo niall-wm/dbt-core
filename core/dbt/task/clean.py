@@ -24,7 +24,7 @@ class CleanTask(BaseTask):
         This function takes all the paths in the target file
         and cleans the project paths that are not protected.
         """
-        move_to_nearest_project_dir(self.args.PROJECT_DIR)
+        move_to_nearest_project_dir(self.args.project_dir)
         if (
             "dbt_modules" in self.project.clean_targets
             and self.config.packages_install_path not in self.config.clean_targets
