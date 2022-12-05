@@ -86,7 +86,7 @@ def cli(ctx, **kwargs):
     if flags.VERSION:
         click.echo(f"`version` called\n ctx.params: {pf(ctx.params)}")
         return
-    
+
     # Profile
     profile = load_profile(
         flags.PROJECT_DIR, flags.VARS, flags.PROFILE, flags.TARGET, flags.THREADS
