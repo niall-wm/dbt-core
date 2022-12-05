@@ -1,4 +1,5 @@
 import builtins
+import re
 from typing import NoReturn, Optional, Mapping, Any
 
 from dbt.events.functions import warn_or_error
@@ -1024,6 +1025,63 @@ class CacheInconsistency(InternalException):
     def __init__(self, message):
         self.message = message
         msg = f"Cache inconsistency detected: {self.message}"
+        super().__init__(msg)
+
+
+class NewNameAlreadyInCache(CacheInconsistency):
+    def __init__(self, old_key, new_key):
+        self.old_key = old_key
+        self.new_key = new_key
+        msg = (
+            f'in rename of "{self.old_key}" -> "{self.new_key}", new name is in the cache already'
+        )
+        super().__init__(msg)
+
+
+class ReferencedLinkNotCached(CacheInconsistency):
+    def __init__(self, referenced_key):
+        self.referenced_key = referenced_key
+        msg = f"in add_link, referenced link key {self.referenced_key} not in cache!"
+        super().__init__(msg)
+
+
+class DependentLinkNotCached(CacheInconsistency):
+    def __init__(self, dependent_key):
+        self.dependent_key = dependent_key
+        msg = f"in add_link, dependent link key {self.dependent_key} not in cache!"
+        super().__init__(msg)
+
+
+class TruncatedModelNameCausedCollision(CacheInconsistency):
+    def __init__(self, new_key, relations):
+        self.new_key = new_key
+        self.relations = relations
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        # Tell user when collision caused by model names truncated during
+        # materialization.
+        match = re.search("__dbt_backup|__dbt_tmp$", self.new_key.identifier)
+        if match:
+            truncated_model_name_prefix = self.new_key.identifier[: match.start()]
+            message_addendum = (
+                "\n\nName collisions can occur when the length of two "
+                "models' names approach your database's builtin limit. "
+                "Try restructuring your project such that no two models "
+                "share the prefix '{}'.".format(truncated_model_name_prefix)
+                + " Then, clean your warehouse of any removed models."
+            )
+        else:
+            message_addendum = ""
+
+        msg = f"in rename, new key {self.new_key} already in cache: {list(self.relations.keys())}{message_addendum}"
+
+        return msg
+
+
+class NoneRelationFound(CacheInconsistency):
+    def __init__(self):
+        msg = "in get_relations, a None relation was found in the cache!"
         super().__init__(msg)
 
 
