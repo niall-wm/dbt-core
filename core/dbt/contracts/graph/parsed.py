@@ -107,6 +107,7 @@ class InjectedCTE(dbtClassMixin, Replaceable):
 
 @dataclass
 class CompiledNode:
+    compiled: bool = False
     compiled_code: Optional[str] = None
     extra_ctes_injected: bool = False
     extra_ctes: List[InjectedCTE] = field(default_factory=list)
@@ -128,6 +129,16 @@ class CompiledNode:
         dct = super().__post_serialize__(dct)
         if "_pre_injected_sql" in dct:
             del dct["_pre_injected_sql"]
+        # Remove compiled attributes
+        if "compiled" in dct and dct["compiled"] is False:
+            del dct["compiled"]
+            del dct["extra_ctes_injected"]
+            del dct["extra_ctes"]
+            # "omit_none" means these might not be in the dictionary
+            if "compiled_code" in dct:
+                del dct["compiled_code"]
+            if "relation_name" in dct:
+                del dct["relation_name"]
         return dct
 
 
@@ -256,7 +267,6 @@ class ParsedNodeDefaults(NodeInfoMixin, CompiledNode, ParsedNodeMandatory):
     meta: Dict[str, Any] = field(default_factory=dict)
     docs: Docs = field(default_factory=Docs)
     patch_path: Optional[str] = None
-    compiled: bool = False
     compiled_path: Optional[str] = None
     build_path: Optional[str] = None
     deferred: bool = False
