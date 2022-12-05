@@ -24,7 +24,11 @@ from dbt.events.types import (
     LogTestResult,
     LogStartLine,
 )
-from dbt.exceptions import InternalException, MissingMaterialization, invalid_bool_error
+from dbt.exceptions import (
+    InternalException,
+    InvalidBoolean,
+    MissingMaterialization,
+)
 from dbt.graph import (
     ResourceTypeSelector,
 )
@@ -50,7 +54,7 @@ class TestResultData(dbtClassMixin):
             try:
                 return bool(strtobool(field))  # type: ignore
             except ValueError:
-                raise invalid_bool_error(field, "get_test_sql")
+                raise InvalidBoolean(field, "get_test_sql")
 
         # need this so we catch both true bools and 0/1
         return bool(field)

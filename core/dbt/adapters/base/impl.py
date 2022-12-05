@@ -24,8 +24,8 @@ import pytz
 
 from dbt.exceptions import (
     raise_compiler_error,
-    invalid_type_error,
     InternalException,
+    InvalidMacroArgType,
     NotImplementedException,
     RelationReturnedMultipleResults,
     RuntimeException,
@@ -615,19 +615,21 @@ class BaseAdapter(metaclass=AdapterMeta):
         to_relation.
         """
         if not isinstance(from_relation, self.Relation):
-            invalid_type_error(
+            raise InvalidMacroArgType(
                 method_name="get_missing_columns",
                 arg_name="from_relation",
                 got_value=from_relation,
                 expected_type=self.Relation,
+                version="0.13.0",
             )
 
         if not isinstance(to_relation, self.Relation):
-            invalid_type_error(
+            raise InvalidMacroArgType(
                 method_name="get_missing_columns",
                 arg_name="to_relation",
                 got_value=to_relation,
                 expected_type=self.Relation,
+                version="0.13.0",
             )
 
         from_columns = {col.name: col for col in self.get_columns_in_relation(from_relation)}
@@ -648,11 +650,12 @@ class BaseAdapter(metaclass=AdapterMeta):
             incorrect.
         """
         if not isinstance(relation, self.Relation):
-            invalid_type_error(
+            raise InvalidMacroArgType(
                 method_name="valid_snapshot_target",
                 arg_name="relation",
                 got_value=relation,
                 expected_type=self.Relation,
+                version="0.13.0",
             )
 
         columns = self.get_columns_in_relation(relation)
@@ -686,19 +689,21 @@ class BaseAdapter(metaclass=AdapterMeta):
         self, from_relation: BaseRelation, to_relation: BaseRelation
     ) -> None:
         if not isinstance(from_relation, self.Relation):
-            invalid_type_error(
+            raise InvalidMacroArgType(
                 method_name="expand_target_column_types",
                 arg_name="from_relation",
                 got_value=from_relation,
                 expected_type=self.Relation,
+                version="0.13.0",
             )
 
         if not isinstance(to_relation, self.Relation):
-            invalid_type_error(
+            raise InvalidMacroArgType(
                 method_name="expand_target_column_types",
                 arg_name="to_relation",
                 got_value=to_relation,
                 expected_type=self.Relation,
+                version="0.13.0",
             )
 
         self.expand_column_types(from_relation, to_relation)

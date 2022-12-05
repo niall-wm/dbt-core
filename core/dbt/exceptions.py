@@ -474,156 +474,6 @@ def raise_parsing_error(msg, node=None) -> NoReturn:
     raise ParsingException(msg, node)
 
 
-def disallow_secret_env_var(env_var_name) -> NoReturn:
-    """Raise an error when a secret env var is referenced outside allowed
-    rendering contexts"""
-    msg = (
-        "Secret env vars are allowed only in profiles.yml or packages.yml. "
-        "Found '{env_var_name}' referenced elsewhere."
-    )
-    raise_parsing_error(msg.format(env_var_name=env_var_name))
-
-
-def invalid_type_error(
-    method_name, arg_name, got_value, expected_type, version="0.13.0"
-) -> NoReturn:
-    """Raise a CompilationException when an adapter method available to macros
-    has changed.
-    """
-    got_type = type(got_value)
-    msg = (
-        "As of {version}, 'adapter.{method_name}' expects argument "
-        "'{arg_name}' to be of type '{expected_type}', instead got "
-        "{got_value} ({got_type})"
-    )
-    raise_compiler_error(
-        msg.format(
-            version=version,
-            method_name=method_name,
-            arg_name=arg_name,
-            expected_type=expected_type,
-            got_value=got_value,
-            got_type=got_type,
-        )
-    )
-
-
-def invalid_bool_error(got_value, macro_name) -> NoReturn:
-    """Raise a CompilationException when a macro expects a boolean but gets some
-    other value.
-    """
-    msg = (
-        "Macro '{macro_name}' returns '{got_value}'.  It is not type 'bool' "
-        "and cannot not be converted reliably to a bool."
-    )
-    raise_compiler_error(msg.format(macro_name=macro_name, got_value=got_value))
-
-
-def ref_invalid_args(model, args) -> NoReturn:
-    raise_compiler_error("ref() takes at most two arguments ({} given)".format(len(args)), model)
-
-
-def metric_invalid_args(model, args) -> NoReturn:
-    raise_compiler_error(
-        "metric() takes at most two arguments ({} given)".format(len(args)), model
-    )
-
-
-def ref_bad_context(model, args) -> NoReturn:
-    ref_args = ", ".join("'{}'".format(a) for a in args)
-    ref_string = "{{{{ ref({}) }}}}".format(ref_args)
-
-    base_error_msg = """dbt was unable to infer all dependencies for the model "{model_name}".
-This typically happens when ref() is placed within a conditional block.
-
-To fix this, add the following hint to the top of the model "{model_name}":
-
--- depends_on: {ref_string}"""
-    # This explicitly references model['name'], instead of model['alias'], for
-    # better error messages. Ex. If models foo_users and bar_users are aliased
-    # to 'users', in their respective schemas, then you would want to see
-    # 'bar_users' in your error messge instead of just 'users'.
-    if isinstance(model, dict):  # TODO: remove this path
-        model_name = model["name"]
-        model_path = model["path"]
-    else:
-        model_name = model.name
-        model_path = model.path
-    error_msg = base_error_msg.format(
-        model_name=model_name, model_path=model_path, ref_string=ref_string
-    )
-    raise_compiler_error(error_msg, model)
-
-
-def doc_invalid_args(model, args) -> NoReturn:
-    raise_compiler_error("doc() takes at most two arguments ({} given)".format(len(args)), model)
-
-
-def doc_target_not_found(
-    model, target_doc_name: str, target_doc_package: Optional[str]
-) -> NoReturn:
-    target_package_string = ""
-
-    if target_doc_package is not None:
-        target_package_string = "in package '{}' ".format(target_doc_package)
-
-    msg = ("Documentation for '{}' depends on doc '{}' {} which was not found").format(
-        model.unique_id, target_doc_name, target_package_string
-    )
-    raise_compiler_error(msg, model)
-
-
-def get_not_found_or_disabled_msg(
-    original_file_path,
-    unique_id,
-    resource_type_title,
-    target_name: str,
-    target_kind: str,
-    target_package: Optional[str] = None,
-    disabled: Optional[bool] = None,
-) -> str:
-    if disabled is None:
-        reason = "was not found or is disabled"
-    elif disabled is True:
-        reason = "is disabled"
-    else:
-        reason = "was not found"
-
-    target_package_string = ""
-    if target_package is not None:
-        target_package_string = "in package '{}' ".format(target_package)
-
-    return "{} '{}' ({}) depends on a {} named '{}' {}which {}".format(
-        resource_type_title,
-        unique_id,
-        original_file_path,
-        target_kind,
-        target_name,
-        target_package_string,
-        reason,
-    )
-
-
-def target_not_found(
-    node,
-    target_name: str,
-    target_kind: str,
-    target_package: Optional[str] = None,
-    disabled: Optional[bool] = None,
-) -> NoReturn:
-    msg = get_not_found_or_disabled_msg(
-        original_file_path=node.original_file_path,
-        unique_id=node.unique_id,
-        resource_type_title=node.resource_type.title(),
-        target_name=target_name,
-        target_kind=target_kind,
-        target_package=target_package,
-        disabled=disabled,
-    )
-
-    raise_compiler_error(msg, node)
-
-
 # compilation level exceptions
 class GraphDependencyNotFound(CompilationException):
     def __init__(self, node, dependency):
@@ -707,6 +557,129 @@ class SymbolicLinkError(CompilationException):
 
 
 # context level exceptions
+class DisallowSecretEnvVar(ParsingException):
+    def __init__(self, env_var_name):
+        self.env_var_name = env_var_name
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = (
+            "Secret env vars are allowed only in profiles.yml or packages.yml. "
+            f"Found '{self.env_var_name}' referenced elsewhere."
+        )
+        return msg
+
+
+class InvalidMacroArgType(CompilationException):
+    def __init__(self, method_name, arg_name, got_value, expected_type, version):
+        self.method_name = method_name
+        self.arg_name = arg_name
+        self.got_value = got_value
+        self.expected_type = expected_type
+        self.version = version
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        got_type = type(self.got_value)
+        msg = (
+            f"As of {self.version}, 'adapter.{self.method_name}' expects argument "
+            f"'{self.arg_name}' to be of type '{self.expected_type}', instead got "
+            f"{self.got_value} ({got_type})"
+        )
+        return msg
+
+
+class InvalidBoolean(CompilationException):
+    def __init__(self, return_value, macro_name):
+        self.return_value = return_value
+        self.macro_name = macro_name
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = (
+            f"Macro '{self.macro_name}' returns '{self.return_value}'.  It is not type 'bool' "
+            "and cannot not be converted reliably to a bool."
+        )
+        return msg
+
+
+class RefInvalidArgs(CompilationException):
+    def __init__(self, node, args):
+        self.node = node
+        self.args = args
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = f"ref() takes at most two arguments ({len(self.args)} given)"
+        return msg
+
+
+class MetricInvalidArgs(CompilationException):
+    def __init__(self, node, args):
+        self.node = node
+        self.args = args
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = f"metric() takes at most two arguments ({len(self.args)} given)"
+        return msg
+
+
+class RefBadContext(CompilationException):
+    def __init__(self, node, args):
+        self.node = node
+        self.args = args
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        # This explicitly references model['name'], instead of model['alias'], for
+        # better error messages. Ex. If models foo_users and bar_users are aliased
+        # to 'users', in their respective schemas, then you would want to see
+        # 'bar_users' in your error messge instead of just 'users'.
+        if isinstance(self.node, dict):
+            model_name = self.node["name"]
+        else:
+            model_name = self.node.name
+
+        ref_args = ", ".join("'{}'".format(a) for a in self.args)
+        ref_string = f"{{{{ ref({ref_args}) }}}}"
+
+        msg = f"""dbt was unable to infer all dependencies for the model "{model_name}".
+This typically happens when ref() is placed within a conditional block.
+
+To fix this, add the following hint to the top of the model "{model_name}":
+
+-- depends_on: {ref_string}"""
+
+        return msg
+
+
+class InvalidDocArgs(CompilationException):
+    def __init__(self, node, args):
+        self.node = node
+        self.args = args
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = f"doc() takes at most two arguments ({len(self.args)} given)"
+        return msg
+
+
+class DocTargetNotFound(CompilationException):
+    def __init__(self, node, target_doc_name: str, target_doc_package: Optional[str]):
+        self.node = node
+        self.target_doc_name = target_doc_name
+        self.target_doc_package = target_doc_package
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        target_package_string = ""
+        if self.target_doc_package is not None:
+            target_package_string = f"in package '{self. target_doc_package}' "
+        msg = f"Documentation for '{self.node.unique_id}' depends on doc '{self.target_doc_name}' {target_package_string} which was not found"
+        return msg
+
+
 class MacroInvalidDispatchArg(CompilationException):
     def __init__(self, macro_name):
         self.macro_name = macro_name
@@ -754,6 +727,45 @@ class DuplicateMacroName(CompilationException):
 
 
 # parser level exceptions
+class TargetNotFound(CompilationException):
+    def __init__(
+        self,
+        node,
+        target_name: str,
+        target_kind: str,
+        target_package: Optional[str] = None,
+        disabled: Optional[bool] = None,
+    ):
+        self.node = node
+        self.target_name = target_name
+        self.target_kind = target_kind
+        self.target_package = target_package
+        self.disabled = disabled
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        original_file_path = self.node.original_file_path
+        unique_id = self.node.unique_id
+        resource_type_title = self.node.resource_type.title()
+
+        if self.disabled is None:
+            reason = "was not found or is disabled"
+        elif self.disabled is True:
+            reason = "is disabled"
+        else:
+            reason = "was not found"
+
+        target_package_string = ""
+        if self.target_package is not None:
+            target_package_string = f"in package '{self.target_package}' "
+
+        msg = (
+            f"{resource_type_title} '{unique_id}' ({original_file_path}) depends on a "
+            f"{self.target_kind} named '{self.target_name}' {target_package_string}which {reason}"
+        )
+        return msg
+
+
 class DuplicateSourcePatchName(CompilationException):
     def __init__(self, patch_1, patch_2):
         self.patch_1 = patch_1
@@ -1421,6 +1433,65 @@ def macro_invalid_dispatch_arg(macro_name) -> NoReturn:
 
 def dependency_not_found(node, dependency):
     raise GraphDependencyNotFound(node, dependency)
+
+
+def target_not_found(
+    node,
+    target_name: str,
+    target_kind: str,
+    target_package: Optional[str] = None,
+    disabled: Optional[bool] = None,
+) -> NoReturn:
+    raise TargetNotFound(
+        node=node,
+        target_name=target_name,
+        target_kind=target_kind,
+        target_package=target_package,
+        disabled=disabled,
+    )
+
+
+def doc_target_not_found(
+    model, target_doc_name: str, target_doc_package: Optional[str]
+) -> NoReturn:
+    raise DocTargetNotFound(
+        node=model, target_doc_name=target_doc_name, target_doc_package=target_doc_package
+    )
+
+
+def doc_invalid_args(model, args) -> NoReturn:
+    raise InvalidDocArgs(node=model, args=args)
+
+
+def ref_bad_context(model, args) -> NoReturn:
+    raise RefBadContext(node=model, args=args)
+
+
+def metric_invalid_args(model, args) -> NoReturn:
+    raise MetricInvalidArgs(node=model, args=args)
+
+
+def ref_invalid_args(model, args) -> NoReturn:
+    raise RefInvalidArgs(node=model, args=args)
+
+
+def invalid_bool_error(got_value, macro_name) -> NoReturn:
+    raise InvalidBoolean(return_value=got_value, macro_name=macro_name)
+
+
+def invalid_type_error(
+    method_name, arg_name, got_value, expected_type, version="0.13.0"
+) -> NoReturn:
+    """Raise a CompilationException when an adapter method available to macros
+    has changed.
+    """
+    raise InvalidMacroArgType(method_name, arg_name, got_value, expected_type, version)
+
+
+def disallow_secret_env_var(env_var_name) -> NoReturn:
+    """Raise an error when a secret env var is referenced outside allowed
+    rendering contexts"""
+    raise DisallowSecretEnvVar(env_var_name)
 
 
 # These are the exceptions functions that were not called within dbt-core but will remain here but deprecated to give a chance to rework

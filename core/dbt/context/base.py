@@ -11,10 +11,10 @@ from dbt.constants import SECRET_ENV_PREFIX, DEFAULT_ENV_PLACEHOLDER
 from dbt.contracts.graph.compiled import CompiledResource
 from dbt.exceptions import (
     CompilationException,
+    DisallowSecretEnvVar,
     MacroReturn,
     raise_compiler_error,
     raise_parsing_error,
-    disallow_secret_env_var,
 )
 from dbt.events.functions import fire_event, get_invocation_id
 from dbt.events.types import JinjaLogInfo, JinjaLogDebug
@@ -300,7 +300,7 @@ class BaseContext(metaclass=ContextMeta):
         """
         return_value = None
         if var.startswith(SECRET_ENV_PREFIX):
-            disallow_secret_env_var(var)
+            raise DisallowSecretEnvVar(var)
         if var in os.environ:
             return_value = os.environ[var]
         elif default is not None:

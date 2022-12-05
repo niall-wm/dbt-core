@@ -45,19 +45,19 @@ from dbt.contracts.graph.metrics import MetricReference, ResolvedMetricReference
 from dbt.events.functions import get_metadata_vars
 from dbt.exceptions import (
     CompilationException,
+    DisallowSecretEnvVar,
     InternalException,
     MacroInvalidDispatchArg,
+    MetricInvalidArgs,
     MissingConfig,
     ParsingException,
+    RefBadContext,
+    RefInvalidArgs,
     RuntimeException,
+    TargetNotFound,
     ValidationException,
     raise_compiler_error,
-    ref_invalid_args,
-    metric_invalid_args,
-    target_not_found,
-    ref_bad_context,
     raise_parsing_error,
-    disallow_secret_env_var,
 )
 from dbt.config import IsFQNResource
 from dbt.node_types import NodeType, ModelLanguage
@@ -236,7 +236,7 @@ class BaseRefResolver(BaseResolver):
         elif len(args) == 2:
             package, name = args
         else:
-            ref_invalid_args(self.model, args)
+            raise RefInvalidArgs(node=self.model, args=args)
         self.validate_args(name, package)
         return self.resolve(name, package)
 
@@ -297,7 +297,7 @@ class BaseMetricResolver(BaseResolver):
         elif len(args) == 2:
             package, name = args
         else:
-            metric_invalid_args(self.model, args)
+            raise MetricInvalidArgs(node=self.model, args=args)
         self.validate_args(name, package)
         return self.resolve(name, package)
 
@@ -475,7 +475,7 @@ class RuntimeRefResolver(BaseRefResolver):
         )
 
         if target_model is None or isinstance(target_model, Disabled):
-            target_not_found(
+            raise TargetNotFound(
                 node=self.model,
                 target_name=target_name,
                 target_kind="node",
@@ -497,7 +497,7 @@ class RuntimeRefResolver(BaseRefResolver):
     ) -> None:
         if resolved.unique_id not in self.model.depends_on.nodes:
             args = self._repack_args(target_name, target_package)
-            ref_bad_context(self.model, args)
+            raise RefBadContext(node=self.model, args=args)
 
 
 class OperationRefResolver(RuntimeRefResolver):
@@ -541,7 +541,7 @@ class RuntimeSourceResolver(BaseSourceResolver):
         )
 
         if target_source is None or isinstance(target_source, Disabled):
-            target_not_found(
+            raise TargetNotFound(
                 node=self.model,
                 target_name=f"{source_name}.{table_name}",
                 target_kind="source",
@@ -568,7 +568,7 @@ class RuntimeMetricResolver(BaseMetricResolver):
         )
 
         if target_metric is None or isinstance(target_metric, Disabled):
-            target_not_found(
+            raise TargetNotFound(
                 node=self.model,
                 target_name=target_name,
                 target_kind="metric",
@@ -1211,7 +1211,7 @@ class ProviderContext(ManifestContext):
         """
         return_value = None
         if var.startswith(SECRET_ENV_PREFIX):
-            disallow_secret_env_var(var)
+            raise DisallowSecretEnvVar(var)
         if var in os.environ:
             return_value = os.environ[var]
         elif default is not None:
@@ -1420,7 +1420,7 @@ def generate_runtime_macro_context(
 class ExposureRefResolver(BaseResolver):
     def __call__(self, *args) -> str:
         if len(args) not in (1, 2):
-            ref_invalid_args(self.model, args)
+            raise RefInvalidArgs(node=self.model, args=args)
         self.model.refs.append(list(args))
         return ""
 
@@ -1438,7 +1438,7 @@ class ExposureSourceResolver(BaseResolver):
 class ExposureMetricResolver(BaseResolver):
     def __call__(self, *args) -> str:
         if len(args) not in (1, 2):
-            metric_invalid_args(self.model, args)
+            raise MetricInvalidArgs(node=self.model, args=args)
         self.model.metrics.append(list(args))
         return ""
 
@@ -1480,7 +1480,7 @@ class MetricRefResolver(BaseResolver):
         elif len(args) == 2:
             package, name = args
         else:
-            ref_invalid_args(self.model, args)
+            raise RefInvalidArgs(node=self.model, args=args)
         self.validate_args(name, package)
         self.model.refs.append(list(args))
         return ""
@@ -1570,7 +1570,7 @@ class TestContext(ProviderContext):
     def env_var(self, var: str, default: Optional[str] = None) -> str:
         return_value = None
         if var.startswith(SECRET_ENV_PREFIX):
-            disallow_secret_env_var(var)
+            raise DisallowSecretEnvVar(var)
         if var in os.environ:
             return_value = os.environ[var]
         elif default is not None:
