@@ -12,7 +12,7 @@ from dbt.contracts.relation import (
     Policy,
     Path,
 )
-from dbt.exceptions import InternalException
+from dbt.exceptions import InternalException, ApproximateMatch
 from dbt.node_types import NodeType
 from dbt.utils import filter_null_values, deep_merge, classproperty
 
@@ -99,7 +99,7 @@ class BaseRelation(FakeAPIObject, Hashable):
 
         if approximate_match and not exact_match:
             target = self.create(database=database, schema=schema, identifier=identifier)
-            dbt.exceptions.approximate_relation_match(target, self)
+            raise ApproximateMatch(target, self)
 
         return exact_match
 

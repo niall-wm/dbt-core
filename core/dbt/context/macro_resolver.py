@@ -1,6 +1,6 @@
 from typing import Dict, MutableMapping, Optional
 from dbt.contracts.graph.parsed import ParsedMacro
-from dbt.exceptions import raise_duplicate_macro_name, raise_compiler_error
+from dbt.exceptions import DuplicateMacroName, raise_compiler_error
 from dbt.include.global_project import PROJECT_NAME as GLOBAL_PROJECT_NAME
 from dbt.clients.jinja import MacroGenerator
 
@@ -86,7 +86,7 @@ class MacroResolver:
             package_namespaces[macro.package_name] = namespace
 
         if macro.name in namespace:
-            raise_duplicate_macro_name(macro, macro, macro.package_name)
+            raise DuplicateMacroName(macro, macro, macro.package_name)
         package_namespaces[macro.package_name][macro.name] = macro
 
     def add_macro(self, macro: ParsedMacro):

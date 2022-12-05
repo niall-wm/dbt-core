@@ -19,13 +19,14 @@ from dbt.adapters.factory import get_adapter, get_adapter_package_names, get_ada
 from dbt.clients import agate_helper
 from dbt.clients.jinja import get_rendered, MacroGenerator, MacroStack
 from dbt.config import RuntimeConfig, Project
-from .base import contextmember, contextproperty, Var
-from .configured import FQNLookup
-from .context_config import ContextConfig
 from dbt.constants import SECRET_ENV_PREFIX, DEFAULT_ENV_PLACEHOLDER
+from dbt.context.base import contextmember, contextproperty, Var
+from dbt.context.configured import FQNLookup
+from dbt.context.context_config import ContextConfig
+from dbt.context.exceptions_jinja import wrapped_exports
 from dbt.context.macro_resolver import MacroResolver, TestMacroNamespace
-from .macros import MacroNamespaceBuilder, MacroNamespace
-from .manifest import ManifestContext
+from dbt.context.macros import MacroNamespaceBuilder, MacroNamespace
+from dbt.context.manifest import ManifestContext
 from dbt.contracts.connection import AdapterResponse
 from dbt.contracts.graph.manifest import Manifest, Disabled
 from dbt.contracts.graph.compiled import (
@@ -58,7 +59,6 @@ from dbt.exceptions import (
     raise_parsing_error,
     disallow_secret_env_var,
 )
-from dbt.jinja_exceptions import wrapped_exports
 from dbt.config import IsFQNResource
 from dbt.node_types import NodeType, ModelLanguage
 

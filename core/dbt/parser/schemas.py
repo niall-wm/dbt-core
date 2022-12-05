@@ -51,7 +51,9 @@ from dbt.contracts.graph.unparsed import (
 )
 from dbt.exceptions import (
     CompilationException,
+    DuplicateMacroPatchName,
     DuplicatePatchPath,
+    DuplicateSourcePatchName,
     JSONValidationException,
     InternalException,
     ParsingException,
@@ -60,8 +62,6 @@ from dbt.exceptions import (
     PropertyYMLVersionNotInt,
     ValidationException,
     validator_error_message,
-    raise_duplicate_macro_patch_name,
-    raise_duplicate_source_patch_name,
 )
 from dbt.events.functions import warn_or_error
 from dbt.events.types import WrongResourceSchemaFile, NoNodeForYamlKey, MacroPatchNotFound
@@ -696,7 +696,7 @@ class SourceParser(YamlDocsReader):
                 # source patches must be unique
                 key = (patch.overrides, patch.name)
                 if key in self.manifest.source_patches:
-                    raise_duplicate_source_patch_name(patch, self.manifest.source_patches[key])
+                    raise DuplicateSourcePatchName(patch, self.manifest.source_patches[key])
                 self.manifest.source_patches[key] = patch
                 source_file.source_patches.append(key)
             else:
@@ -980,7 +980,7 @@ class MacroPatchParser(NonSourceParser[UnparsedMacroUpdate, ParsedMacroPatch]):
             return
         if macro.patch_path:
             package_name, existing_file_path = macro.patch_path.split("://")
-            raise_duplicate_macro_patch_name(patch, existing_file_path)
+            raise DuplicateMacroPatchName(patch, existing_file_path)
         source_file.macro_patches[patch.name] = unique_id
         macro.patch(patch)
 

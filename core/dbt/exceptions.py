@@ -1,29 +1,13 @@
 import builtins
 from typing import NoReturn, Optional, Mapping, Any
 
+from dbt.events.functions import warn_or_error
 from dbt.events.helpers import env_secrets, scrub_secrets
 from dbt.events.types import JinjaLogWarning
 from dbt.events.contextvars import get_node_info
+
 from dbt.node_types import NodeType
-from dbt.jinja_exceptions import (
-    warn,
-    missing_config,
-    missing_materialization,
-    missing_relation,
-    raise_ambiguous_alias,
-    raise_ambiguous_catalog_match,
-    raise_cache_inconsistent,
-    raise_dataclass_not_dict,
-    # raise_compiler_error,
-    raise_database_error,
-    raise_dep_not_found,
-    raise_dependency_error,
-    raise_duplicate_patch_name,
-    raise_duplicate_resource_name,
-    raise_invalid_property_yml_version,
-    raise_not_implemented,
-    relation_wrong_type,
-)
+
 
 import dbt.dataclass_schema
 
@@ -36,6 +20,16 @@ def validator_error_message(exc):
         return str(exc)
     path = "[%s]" % "][".join(map(repr, exc.relative_path))
     return "at path {}: {}".format(path, exc.message)
+
+
+def _fix_dupe_msg(path_1: str, path_2: str, name: str, type_name: str) -> str:
+    if path_1 == path_2:
+        return f"remove one of the {type_name} entries for {name} in this file:\n - {path_1!s}\n"
+    else:
+        return (
+            f"remove the {type_name} entry for {name} in one of these files:\n"
+            f" - {path_1!s}\n{path_2!s}"
+        )
 
 
 class Exception(builtins.Exception):
@@ -715,155 +709,113 @@ def get_relation_returned_multiple_results(kwargs, matches):
     multiple_matching_relations(kwargs, matches)
 
 
-def approximate_relation_match(target, relation):
-    raise_compiler_error(
-        "When searching for a relation, dbt found an approximate match. "
-        "Instead of guessing \nwhich relation to use, dbt will move on. "
-        "Please delete {relation}, or rename it to be less ambiguous."
-        "\nSearched for: {target}\nFound: {relation}".format(target=target, relation=relation)
-    )
+# context level exceptions
+class DuplicateMacroName(CompilationException):
+    def __init__(self, node_1, node_2, namespace):
+        self.node_1 = node_1
+        self.node_2 = node_2
+        self.namespace = namespace
+        super().__init__(self.get_message())
 
+    def get_message(self) -> str:
+        duped_name = self.node_1.name
+        if self.node_1.package_name != self.node_2.package_name:
+            extra = ' ("{}" and "{}" are both in the "{}" namespace)'.format(
+                self.node_1.package_name, self.node_2.package_name, self.namespace
+            )
+        else:
+            extra = ""
 
-def raise_duplicate_macro_name(node_1, node_2, namespace) -> NoReturn:
-    duped_name = node_1.name
-    if node_1.package_name != node_2.package_name:
-        extra = ' ("{}" and "{}" are both in the "{}" namespace)'.format(
-            node_1.package_name, node_2.package_name, namespace
-        )
-    else:
-        extra = ""
-
-    raise_compiler_error(
-        'dbt found two macros with the name "{}" in the namespace "{}"{}. '
-        "Since these macros have the same name and exist in the same "
-        "namespace, dbt will be unable to decide which to call. To fix this, "
-        "change the name of one of these macros:\n- {} ({})\n- {} ({})".format(
-            duped_name,
-            namespace,
-            extra,
-            node_1.unique_id,
-            node_1.original_file_path,
-            node_2.unique_id,
-            node_2.original_file_path,
-        )
-    )
-
-
-def raise_patch_targets_not_found(patches):
-    patch_list = "\n\t".join(
-        "model {} (referenced in path {})".format(p.name, p.original_file_path)
-        for p in patches.values()
-    )
-    raise_compiler_error(
-        "dbt could not find models for the following patches:\n\t{}".format(patch_list)
-    )
-
-
-def _fix_dupe_msg(path_1: str, path_2: str, name: str, type_name: str) -> str:
-    if path_1 == path_2:
-        return f"remove one of the {type_name} entries for {name} in this file:\n - {path_1!s}\n"
-    else:
-        return (
-            f"remove the {type_name} entry for {name} in one of these files:\n"
-            f" - {path_1!s}\n{path_2!s}"
+        msg = (
+            f'dbt found two macros with the name "{duped_name}" in the namespace "{self.namespace}"{extra}. '
+            "Since these macros have the same name and exist in the same "
+            "namespace, dbt will be unable to decide which to call. To fix this, "
+            f"change the name of one of these macros:\n- {self.node_1.unique_id} "
+            f"({self.node_1.original_file_path})\n- {self.node_2.unique_id} ({self.node_2.original_file_path})"
         )
 
-
-def raise_duplicate_macro_patch_name(patch_1, existing_patch_path):
-    package_name = patch_1.package_name
-    name = patch_1.name
-    fix = _fix_dupe_msg(patch_1.original_file_path, existing_patch_path, name, "macros")
-    raise_compiler_error(
-        f"dbt found two schema.yml entries for the same macro in package "
-        f"{package_name} named {name}. Macros may only be described a single "
-        f"time. To fix this, {fix}"
-    )
+        return msg
 
 
-def raise_duplicate_source_patch_name(patch_1, patch_2):
-    name = f"{patch_1.overrides}.{patch_1.name}"
-    fix = _fix_dupe_msg(
-        patch_1.path,
-        patch_2.path,
-        name,
-        "sources",
-    )
-    raise_compiler_error(
-        f"dbt found two schema.yml entries for the same source named "
-        f"{patch_1.name} in package {patch_1.overrides}. Sources may only be "
-        f"overridden a single time. To fix this, {fix}"
-    )
+# parser level exceptions
+class DuplicateSourcePatchName(CompilationException):
+    def __init__(self, patch_1, patch_2):
+        self.patch_1 = patch_1
+        self.patch_2 = patch_2
+        super().__init__(self.get_message())
 
-
-def raise_unrecognized_credentials_type(typename, supported_types):
-    raise_compiler_error(
-        'Unrecognized credentials type "{}" - supported types are ({})'.format(
-            typename, ", ".join('"{}"'.format(t) for t in supported_types)
+    def get_message(self) -> str:
+        name = f"{self.patch_1.overrides}.{self.patch_1.name}"
+        fix = _fix_dupe_msg(
+            self.patch_1.path,
+            self.patch_2.path,
+            name,
+            "sources",
         )
-    )
+        msg = (
+            f"dbt found two schema.yml entries for the same source named "
+            f"{self.patch_1.name} in package {self.patch_1.overrides}. Sources may only be "
+            f"overridden a single time. To fix this, {fix}"
+        )
+        return msg
 
 
-def raise_duplicate_alias(
-    kwargs: Mapping[str, Any], aliases: Mapping[str, str], canonical_key: str
-) -> NoReturn:
-    # dupe found: go through the dict so we can have a nice-ish error
-    key_names = ", ".join("{}".format(k) for k in kwargs if aliases.get(k) == canonical_key)
+class DuplicateMacroPatchName(CompilationException):
+    def __init__(self, patch_1, existing_patch_path):
+        self.patch_1 = patch_1
+        self.existing_patch_path = existing_patch_path
+        super().__init__(self.get_message())
 
-    raise AliasException(f'Got duplicate keys: ({key_names}) all map to "{canonical_key}"')
-
-
-def warn(msg, node=None):
-    dbt.events.functions.warn_or_error(
-        JinjaLogWarning(msg=msg, node_info=get_node_info()),
-        node=node,
-    )
-    return ""
-
-
-# Update this when a new function should be added to the
-# dbt context's `exceptions` key!
-CONTEXT_EXPORTS = {
-    fn.__name__: fn
-    for fn in [
-        warn,
-        missing_config,
-        missing_materialization,
-        missing_relation,
-        raise_ambiguous_alias,
-        raise_ambiguous_catalog_match,
-        raise_cache_inconsistent,
-        raise_dataclass_not_dict,
-        raise_compiler_error,
-        raise_database_error,
-        raise_dep_not_found,
-        raise_dependency_error,
-        raise_duplicate_patch_name,
-        raise_duplicate_resource_name,
-        raise_invalid_property_yml_version,
-        raise_not_implemented,
-        relation_wrong_type,
-    ]
-}
+    def get_message(self) -> str:
+        package_name = self.patch_1.package_name
+        name = self.patch_1.name
+        fix = _fix_dupe_msg(
+            self.patch_1.original_file_path, self.existing_patch_path, name, "macros"
+        )
+        msg = (
+            f"dbt found two schema.yml entries for the same macro in package "
+            f"{package_name} named {name}. Macros may only be described a single "
+            f"time. To fix this, {fix}"
+        )
+        return msg
 
 
-def wrapper(model):
-    def wrap(func):
-        @functools.wraps(func)
-        def inner(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except RuntimeException as exc:
-                exc.add_node(model)
-                raise exc
+# core level exceptions
+class DuplicateAlias(AliasException):
+    def __init__(self, kwargs: Mapping[str, Any], aliases: Mapping[str, str], canonical_key: str):
+        self.kwargs = kwargs
+        self.aliases = aliases
+        self.canonical_key = canonical_key
+        super().__init__(self.get_message())
 
-        return inner
+    def get_message(self) -> str:
+        # dupe found: go through the dict so we can have a nice-ish error
+        key_names = ", ".join(
+            "{}".format(k) for k in self.kwargs if self.aliases.get(k) == self.canonical_key
+        )
+        msg = f'Got duplicate keys: ({key_names}) all map to "{self.canonical_key}"'
+        return msg
 
-    return wrap
+
+# adapters exceptions
+class ApproximateMatch(CompilationException):
+    def __init__(self, target, relation):
+        self.target = target
+        self.relation = relation
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+
+        msg = (
+            "When searching for a relation, dbt found an approximate match. "
+            "Instead of guessing \nwhich relation to use, dbt will move on. "
+            f"Please delete {self.relation}, or rename it to be less ambiguous."
+            f"\nSearched for: {self.target}\nFound: {self.relation}"
+        )
+
+        return msg
 
 
-def wrapped_exports(model):
-    wrap = wrapper(model)
-    return {name: wrap(export) for name, export in CONTEXT_EXPORTS.items()}
 # adapters exceptions
 class UnexpectedNull(DatabaseException):
     def __init__(self, field_name, source):
@@ -886,9 +838,6 @@ class UnexpectedNonTimestamp(DatabaseException):
             f"{self.source} but received value of type '{self.type_name}' instead"
         )
         super().__init__(msg)
-
-
-# start new exceptions
 
 
 # deps exceptions
@@ -1234,74 +1183,121 @@ class RelationWrongType(CompilationException):
         return msg
 
 
-# These are placeholders to not immediately break app adapters utilizing these functions as exceptions.
+# These are copies of what's in dbt/context/exceptions_jinja.py to not immediately break adapters
+# utilizing these functions as exceptions.  These are direct copies to avoid circular imports.
 # They will be removed in 1 (or 2?) versions.  Issue to be created to ensure it happens.
+
 # TODO: add deprecation to functions
-def warn(msg, node=None):  # type: ignore[no-redef] # noqa
-    return warn(msg, node)
+def warn(msg, node=None):
+    warn_or_error(JinjaLogWarning(msg=msg, node_info=get_node_info()))
+    return ""
 
 
-def missing_config(model, name) -> NoReturn:  # type: ignore[no-redef] # noqa
-    missing_config(model, name)
+def missing_config(model, name) -> NoReturn:
+    raise MissingConfig(unique_id=model.unique_id, name=name)
 
 
-def missing_materialization(model, adapter_type) -> NoReturn:  # type: ignore[no-redef] # noqa
-    missing_materialization(model, adapter_type)
+def missing_materialization(model, adapter_type) -> NoReturn:
+    raise MissingMaterialization(model=model, adapter_type=adapter_type)
 
 
-def missing_relation(relation, model=None) -> NoReturn:  # type: ignore[no-redef] # noqa
-    missing_relation(relation, model)
+def missing_relation(relation, model=None) -> NoReturn:
+    raise MissingRelation(relation, model)
 
 
-def raise_ambiguous_alias(node_1, node_2, duped_name=None) -> NoReturn:  # type: ignore[no-redef] # noqa
-    raise_ambiguous_alias(node_1, node_2, duped_name)
+def raise_ambiguous_alias(node_1, node_2, duped_name=None) -> NoReturn:
+    raise AmbiguousAlias(node_1, node_2, duped_name)
 
 
-def raise_ambiguous_catalog_match(unique_id, match_1, match_2) -> NoReturn:  # type: ignore[no-redef] # noqa
-    raise_ambiguous_catalog_match(unique_id, match_1, match_2)
+def raise_ambiguous_catalog_match(unique_id, match_1, match_2) -> NoReturn:
+    raise AmbiguousCatalogMatch(unique_id, match_1, match_2)
 
 
-def raise_cache_inconsistent(message) -> NoReturn:  # type: ignore[no-redef] # noqa
-    raise_cache_inconsistent(message)
+# TODO: this should be improved to not format message here
+def raise_cache_inconsistent(message) -> NoReturn:
+    raise InternalException("Cache inconsistency detected: {}".format(message))
 
 
-def raise_dataclass_not_dict(obj) -> NoReturn:  # type: ignore[no-redef] # noqa
-    raise_dataclass_not_dict(obj)
+def raise_dataclass_not_dict(obj) -> NoReturn:
+    raise DataclassNotDict(obj)
 
 
-# this is already used all over our code so for now can't do this until it's fully
-# removed from this file.  otherwise casuses recurssion errors.
+# TODO: add this is once it's removed above
 # def raise_compiler_error(msg, node=None) -> NoReturn:
-#     raise_compiler_error(msg, node=None)
+#     raise CompilationException(msg, node)
 
 
-def raise_database_error(msg, node=None) -> NoReturn:  # type: ignore[no-redef] # noqa
-    raise_database_error(msg, node)
+def raise_database_error(msg, node=None) -> NoReturn:
+    raise DatabaseException(msg, node)
 
 
-def raise_dep_not_found(node, node_description, required_pkg) -> NoReturn:  # type: ignore[no-redef] # noqa
-    raise_dep_not_found(node, node_description, required_pkg)
+def raise_dep_not_found(node, node_description, required_pkg) -> NoReturn:
+    raise DependencyNotFound(node, node_description, required_pkg)
 
 
-def raise_dependency_error(msg) -> NoReturn:  # type: ignore[no-redef] # noqa
-    raise_dependency_error(msg)
+def raise_dependency_error(msg) -> NoReturn:
+    raise DependencyException(scrub_secrets(msg, env_secrets()))
 
 
-def raise_duplicate_patch_name(patch_1, existing_patch_path) -> NoReturn:  # type: ignore[no-redef] # noqa
-    raise_duplicate_patch_name(patch_1, existing_patch_path)
+def raise_duplicate_patch_name(patch_1, existing_patch_path) -> NoReturn:
+    raise DuplicatePatchPath(patch_1, existing_patch_path)
 
 
-def raise_duplicate_resource_name(node_1, node_2) -> NoReturn:  # type: ignore[no-redef] # noqa
-    raise_duplicate_resource_name(node_1, node_2)
+def raise_duplicate_resource_name(node_1, node_2) -> NoReturn:
+    raise DuplicateResourceName(node_1, node_2)
 
 
-def raise_invalid_property_yml_version(path, issue) -> NoReturn:  # type: ignore[no-redef] # noqa
-    raise_invalid_property_yml_version(path, issue)
+def raise_invalid_property_yml_version(path, issue) -> NoReturn:
+    raise InvalidPropertyYML(path, issue)
 
 
-def raise_not_implemented(msg) -> NoReturn:  # type: ignore[no-redef] # noqa
-    raise_not_implemented(msg)
+# TODO: this should be improved to not format message here
+def raise_not_implemented(msg) -> NoReturn:
+    raise NotImplementedException("ERROR: {}".format(msg))
 
 
-def relation_wrong_type(relation, expected_type, model=None) -> NoReturn:  # type: ignore[no-redef] # noqa
-    relation_wrong_type(relation, expected_type, model)
+def relation_wrong_type(relation, expected_type, model=None) -> NoReturn:
+    raise RelationWrongType(relation, expected_type, model)
+
+
+# these were implemented in core so deprecating here by calling the new exception directly
+def raise_duplicate_alias(
+    kwargs: Mapping[str, Any], aliases: Mapping[str, str], canonical_key: str
+) -> NoReturn:
+    raise DuplicateAlias(kwargs, aliases, canonical_key)
+
+
+def raise_duplicate_source_patch_name(patch_1, patch_2):
+    raise DuplicateSourcePatchName(patch_1, patch_2)
+
+
+def raise_duplicate_macro_patch_name(patch_1, existing_patch_path):
+    raise DuplicateMacroPatchName(patch_1, existing_patch_path)
+
+
+def raise_duplicate_macro_name(node_1, node_2, namespace) -> NoReturn:
+    raise DuplicateMacroName(node_1, node_2, namespace)
+
+
+def approximate_relation_match(target, relation):
+    raise ApproximateMatch(target, relation)
+
+
+# These are the exceptions functions that were not called within dbt-core but will remain here but deprecated to give a chance to rework
+# TODO: is this valid?  Should I create a special exception class for this?
+def raise_unrecognized_credentials_type(typename, supported_types):
+    raise_compiler_error(
+        'Unrecognized credentials type "{}" - supported types are ({})'.format(
+            typename, ", ".join('"{}"'.format(t) for t in supported_types)
+        )
+    )
+
+
+def raise_patch_targets_not_found(patches):
+    patch_list = "\n\t".join(
+        "model {} (referenced in path {})".format(p.name, p.original_file_path)
+        for p in patches.values()
+    )
+    raise_compiler_error(
+        "dbt could not find models for the following patches:\n\t{}".format(patch_list)
+    )
