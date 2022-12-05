@@ -22,7 +22,7 @@ from dbt.contracts.graph.compiled import (
 )
 from dbt.contracts.graph.parsed import ParsedNode
 from dbt.exceptions import (
-    dependency_not_found,
+    GraphDependencyNotFound,
     InternalException,
     RuntimeException,
 )
@@ -419,7 +419,7 @@ class Compiler:
             elif dependency in manifest.metrics:
                 linker.dependency(node.unique_id, (manifest.metrics[dependency].unique_id))
             else:
-                dependency_not_found(node, dependency)
+                raise GraphDependencyNotFound(node, dependency)
 
     def link_graph(self, linker: Linker, manifest: Manifest, add_test_edges: bool = False):
         for source in manifest.sources.values():

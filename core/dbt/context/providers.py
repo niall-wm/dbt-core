@@ -45,12 +45,12 @@ from dbt.contracts.graph.metrics import MetricReference, ResolvedMetricReference
 from dbt.events.functions import get_metadata_vars
 from dbt.exceptions import (
     CompilationException,
-    ParsingException,
     InternalException,
-    ValidationException,
-    RuntimeException,
+    MacroInvalidDispatchArg,
     MissingConfig,
-    macro_invalid_dispatch_arg,
+    ParsingException,
+    RuntimeException,
+    ValidationException,
     raise_compiler_error,
     ref_invalid_args,
     metric_invalid_args,
@@ -142,7 +142,7 @@ class BaseDatabaseWrapper:
             raise CompilationException(msg)
 
         if packages is not None:
-            raise macro_invalid_dispatch_arg(macro_name)
+            raise MacroInvalidDispatchArg(macro_name)
 
         namespace = macro_namespace
 

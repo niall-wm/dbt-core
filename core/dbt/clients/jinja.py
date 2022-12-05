@@ -32,9 +32,9 @@ from dbt.exceptions import (
     InternalException,
     raise_compiler_error,
     CompilationException,
-    invalid_materialization_argument,
-    MacroReturn,
+    InvalidMaterializationArg,
     JinjaRenderingException,
+    MacroReturn,
     UndefinedMacroException,
 )
 from dbt import flags
@@ -377,7 +377,7 @@ class MaterializationExtension(jinja2.ext.Extension):
                 node.defaults.append(languages)
 
             else:
-                invalid_materialization_argument(materialization_name, target.name)
+                raise InvalidMaterializationArg(materialization_name, target.name)
 
         if SUPPORTED_LANG_ARG not in node.args:
             node.args.append(SUPPORTED_LANG_ARG)

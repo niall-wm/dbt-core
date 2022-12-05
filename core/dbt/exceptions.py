@@ -474,20 +474,6 @@ def raise_parsing_error(msg, node=None) -> NoReturn:
     raise ParsingException(msg, node)
 
 
-def raise_git_cloning_error(error: CommandResultError) -> NoReturn:
-    error.cmd = scrub_secrets(str(error.cmd), env_secrets())
-    raise error
-
-
-def raise_git_cloning_problem(repo) -> NoReturn:
-    repo = scrub_secrets(repo, env_secrets())
-    msg = """\
-    Something went wrong while cloning {}
-    Check the debug logs for more information
-    """
-    raise RuntimeException(msg.format(repo))
-
-
 def disallow_secret_env_var(env_var_name) -> NoReturn:
     """Raise an error when a secret env var is referenced outside allowed
     rendering contexts"""
@@ -638,59 +624,74 @@ def target_not_found(
     raise_compiler_error(msg, node)
 
 
-def dependency_not_found(model, target_model_name):
-    raise_compiler_error(
-        "'{}' depends on '{}' which is not in the graph!".format(
-            model.unique_id, target_model_name
-        ),
-        model,
-    )
+# compilation level exceptions
+class GraphDependencyNotFound(CompilationException):
+    def __init__(self, node, dependency):
+        self.node = node
+        self.dependency = dependency
+        super().__init__(self.get_message())
 
-
-def macro_not_found(model, target_macro_id):
-    raise_compiler_error(
-        model,
-        "'{}' references macro '{}' which is not defined!".format(
-            model.unique_id, target_macro_id
-        ),
-    )
-
-
-def macro_invalid_dispatch_arg(macro_name) -> NoReturn:
-    msg = """\
-    The "packages" argument of adapter.dispatch() has been deprecated.
-    Use the "macro_namespace" argument instead.
-
-    Raised during dispatch for: {}
-
-    For more information, see:
-
-    https://docs.getdbt.com/reference/dbt-jinja-functions/dispatch
-    """
-    raise_compiler_error(msg.format(macro_name))
-
-
-def materialization_not_available(model, adapter_type):
-    materialization = model.get_materialization()
-
-    raise_compiler_error(
-        "Materialization '{}' is not available for {}!".format(materialization, adapter_type),
-        model,
-    )
-
-
-def bad_package_spec(repo, spec, error_message):
-    msg = "Error checking out spec='{}' for repo {}\n{}".format(spec, repo, error_message)
-    raise InternalException(scrub_secrets(msg, env_secrets()))
-
-
-def invalid_materialization_argument(name, argument):
-    raise_compiler_error(
-        "materialization '{}' received unknown argument '{}'.".format(name, argument)
-    )
+    def get_message(self) -> str:
+        msg = f"'{self.node.unique_id}' depends on '{self.dependency}' which is not in the graph!"
+        return msg
 
 
 # client level exceptions
+class GitCloningProblem(RuntimeException):
+    def __init__(self, repo):
+        self.repo = scrub_secrets(repo, env_secrets())
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = f"""\
+        Something went wrong while cloning {self.repo}
+        Check the debug logs for more information
+        """
+        return msg
+
+
+class GitCloningError(InternalException):
+    def __init__(self, repo, revision, error):
+        self.repo = repo
+        self.revision = revision
+        self.error = error
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        stderr = self.error.stderr.strip()
+        if "usage: git" in stderr:
+            stderr = stderr.split("\nusage: git")[0]
+        if re.match("fatal: destination path '(.+)' already exists", stderr):
+            self.error.cmd = scrub_secrets(str(self.error.cmd), env_secrets())
+            raise self.error
+
+        msg = f"Error checking out spec='{self.revision}' for repo {self.repo}\n{stderr}"
+        return scrub_secrets(msg, env_secrets())
+
+
+class GitCheckoutError(InternalException):
+    def __init__(self, repo, revision, error):
+        self.repo = repo
+        self.revision = revision
+        self.stderr = error.stderr.strip()
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = f"Error checking out spec='{self.revision}' for repo {self.repo}\n{self.stderr}"
+        return scrub_secrets(msg, env_secrets())
+
+
+class InvalidMaterializationArg(CompilationException):
+    def __init__(self, name, argument):
+        self.name = name
+        self.argument = argument
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = f"materialization '{self.name}' received unknown argument '{self.argument}'."
+        return msg
+
+
 class SymbolicLinkError(CompilationException):
     def __init__(self):
         super().__init__(self.get_message())
@@ -706,6 +707,25 @@ class SymbolicLinkError(CompilationException):
 
 
 # context level exceptions
+class MacroInvalidDispatchArg(CompilationException):
+    def __init__(self, macro_name):
+        self.macro_name = macro_name
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        msg = f"""\
+        The "packages" argument of adapter.dispatch() has been deprecated.
+        Use the "macro_namespace" argument instead.
+
+        Raised during dispatch for: {self.macro_name}
+
+        For more information, see:
+
+        https://docs.getdbt.com/reference/dbt-jinja-functions/dispatch
+        """
+        return msg
+
+
 class DuplicateMacroName(CompilationException):
     def __init__(self, node_1, node_2, namespace):
         self.node_1 = node_1
@@ -794,6 +814,18 @@ class DuplicateAlias(AliasException):
 
 
 # adapters exceptions
+class MaterializationNotAvailable(CompilationException):
+    def __init__(self, model, adapter_type):
+        self.model = model
+        self.adapter_type = adapter_type
+        super().__init__(self.get_message())
+
+    def get_message(self) -> str:
+        materialization = self.model.get_materialization()
+        msg = f"Materialization '{materialization}' is not available for {self.adapter_type}!"
+        return msg
+
+
 class RelationReturnedMultipleResults(CompilationException):
     def __init__(self, kwargs, matches):
         self.kwargs = kwargs
@@ -1365,6 +1397,32 @@ def system_error(operation_name):
     raise CompilationException(msg)
 
 
+def invalid_materialization_argument(name, argument):
+    raise InvalidMaterializationArg(name, argument)
+
+
+def bad_package_spec(repo, spec, error_message):
+    msg = "Error checking out spec='{}' for repo {}\n{}".format(spec, repo, error_message)
+    raise InternalException(scrub_secrets(msg, env_secrets()))
+
+
+def raise_git_cloning_error(error: CommandResultError) -> NoReturn:
+    error.cmd = scrub_secrets(str(error.cmd), env_secrets())
+    raise error
+
+
+def raise_git_cloning_problem(repo) -> NoReturn:
+    raise GitCloningProblem(repo)
+
+
+def macro_invalid_dispatch_arg(macro_name) -> NoReturn:
+    raise MacroInvalidDispatchArg(macro_name)
+
+
+def dependency_not_found(node, dependency):
+    raise GraphDependencyNotFound(node, dependency)
+
+
 # These are the exceptions functions that were not called within dbt-core but will remain here but deprecated to give a chance to rework
 # TODO: is this valid?  Should I create a special exception class for this?
 def raise_unrecognized_credentials_type(typename, supported_types):
@@ -1385,3 +1443,13 @@ def raise_patch_targets_not_found(patches):
 
 def multiple_matching_relations(kwargs, matches):
     raise RelationReturnedMultipleResults(kwargs, matches)
+
+
+# while this isn't in our code I wouldn't be surpised it's in adapter code
+def materialization_not_available(model, adapter_type):
+    raise MaterializationNotAvailable(model, adapter_type)
+
+
+def macro_not_found(model, target_macro_id):
+    msg = f"'{model.unique_id}' references macro '{target_macro_id}' which is not defined!"
+    raise CompilationException(msg=msg, node=model)
