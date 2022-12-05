@@ -48,6 +48,7 @@ def cli_runner():
 @p.printer_width
 @p.quiet
 @p.record_timing_info
+@p.single_threaded
 @p.static_parser
 @p.use_colors
 @p.use_experimental_parser
@@ -59,7 +60,6 @@ def cli(ctx, **kwargs):
     """An ELT tool for managing your SQL transformations and data models.
     For more documentation on these commands, visit: docs.getdbt.com
     """
-
     # Get primatives
     flags = Flags()
 
@@ -71,6 +71,7 @@ def cli(ctx, **kwargs):
         flags.USE_COLORS,
         flags.DEBUG,
     )
+
     # Tracking
     initialize_from_flags(flags.ANONYMOUS_USAGE_STATS, flags.PROFILES_DIR)
     ctx.with_resource(track_run(run_command=ctx.invoked_subcommand))

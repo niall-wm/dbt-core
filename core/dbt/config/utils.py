@@ -64,7 +64,13 @@ def get_project_config(
         flags.set_from_args(args, user_config)
         if cli_vars is None:
             cli_vars = {}
-        profile = Profile.render_from_args(args, ProfileRenderer(cli_vars), profile_name)
+        profile = Profile.render(
+            ProfileRenderer(cli_vars),
+            profile_name,
+            args.THREADS,
+            args.TARGET,
+            args.PROFILE,
+        )
     # Generate a project
     project = Project.from_project_root(
         project_path,

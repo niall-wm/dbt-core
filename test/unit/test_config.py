@@ -88,10 +88,10 @@ model_fqns = frozenset((
 
 class Args:
     def __init__(self, profiles_dir=None, threads=None, profile=None,
-                 cli_vars=None, version_check=None, project_dir=None):
+                 cli_vars=None, version_check=None, project_dir=None, target=None):
         self.profile = profile
-        if threads is not None:
-            self.threads = threads
+        self.threads = threads
+        self.target = target
         if profiles_dir is not None:
             self.profiles_dir = profiles_dir
             flags.PROFILES_DIR = profiles_dir
@@ -404,12 +404,14 @@ class TestProfileFile(BaseFileTest):
 
     def from_args(self, project_profile_name='default', **kwargs):
         kw = {
-            'args': self.args,
             'project_profile_name': project_profile_name,
-            'renderer': empty_profile_renderer()
+            'renderer': empty_profile_renderer(),
+            'threads_override': self.args.threads,
+            'target_override': self.args.target,
+            'profile_name_override': self.args.profile,
         }
         kw.update(kwargs)
-        return dbt.config.Profile.render_from_args(**kw)
+        return dbt.config.Profile.render(**kw)
 
     def test_profile_simple(self):
         profile = self.from_args()
