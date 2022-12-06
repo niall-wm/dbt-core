@@ -141,14 +141,6 @@ macro_debugging = click.option(
     hidden=True,
 )
 
-models = click.option(
-    "-m",
-    "-s",
-    "models",
-    envvar=None,
-    help="Specify the nodes to include.",
-    multiple=True,
-)
 
 output = click.option(
     "--output",
@@ -268,6 +260,15 @@ resource_type = click.option(
         case_sensitive=False,
     ),
     default="default",
+)
+
+select = click.option(
+    "-m",
+    "-s",
+    "select",
+    envvar=None,
+    help="Specify the nodes to include.",
+    multiple=True,
 )
 
 selector = click.option(

@@ -111,10 +111,10 @@ def cli(ctx, **kwargs):
 @p.fail_fast
 @p.full_refresh
 @p.indirect_selection
-@p.models
 @p.profile
 @p.profiles_dir
 @p.project_dir
+@p.select
 @p.selector
 @p.show
 @p.state
@@ -157,10 +157,10 @@ def docs(ctx, **kwargs):
 @p.compile_docs
 @p.defer
 @p.exclude
-@p.models
 @p.profile
 @p.profiles_dir
 @p.project_dir
+@p.select
 @p.selector
 @p.state
 @p.target
@@ -196,11 +196,11 @@ def docs_serve(ctx, **kwargs):
 @p.defer
 @p.exclude
 @p.full_refresh
-@p.models
 @p.parse_only
 @p.profile
 @p.profiles_dir
 @p.project_dir
+@p.select
 @p.selector
 @p.state
 @p.target
@@ -270,13 +270,13 @@ def init(ctx, **kwargs):
 @click.pass_context
 @p.exclude
 @p.indirect_selection
-@p.models
 @p.output
 @p.output_keys
 @p.profile
 @p.profiles_dir
 @p.project_dir
 @p.resource_type
+@p.select
 @p.selector
 @p.state
 @p.target
@@ -313,10 +313,10 @@ def parse(ctx, **kwargs):
 @p.exclude
 @p.fail_fast
 @p.full_refresh
-@p.models
 @p.profile
 @p.profiles_dir
 @p.project_dir
+@p.select
 @p.selector
 @p.state
 @p.target
@@ -328,10 +328,11 @@ def run(ctx, **kwargs):
     """Compile SQL and execute against the current target database."""
 
     config = RuntimeConfig.from_parts(ctx.obj["project"], ctx.obj["profile"], ctx.obj["flags"])
-
     task = RunTask(ctx.obj["flags"], config)
 
-    task.run()
+    results = task.run()
+    success = task.interpret_results(results)
+    return results, success
 
 
 # dbt run operation
@@ -354,10 +355,10 @@ def run_operation(ctx, **kwargs):
 @click.pass_context
 @p.exclude
 @p.full_refresh
-@p.models
 @p.profile
 @p.profiles_dir
 @p.project_dir
+@p.select
 @p.selector
 @p.show
 @p.state
@@ -377,10 +378,10 @@ def seed(ctx, **kwargs):
 @click.pass_context
 @p.defer
 @p.exclude
-@p.models
 @p.profile
 @p.profiles_dir
 @p.project_dir
+@p.select
 @p.selector
 @p.state
 @p.target
@@ -403,11 +404,11 @@ def source(ctx, **kwargs):
 @source.command("freshness")
 @click.pass_context
 @p.exclude
-@p.models
 @p.output_path  # TODO: Is this ok to re-use?  We have three different output params, how much can we consolidate?
 @p.profile
 @p.profiles_dir
 @p.project_dir
+@p.select
 @p.selector
 @p.state
 @p.target
@@ -426,10 +427,10 @@ def freshness(ctx, **kwargs):
 @p.exclude
 @p.fail_fast
 @p.indirect_selection
-@p.models
 @p.profile
 @p.profiles_dir
 @p.project_dir
+@p.select
 @p.selector
 @p.state
 @p.store_failures
