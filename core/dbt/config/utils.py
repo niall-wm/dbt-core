@@ -1,4 +1,5 @@
 from argparse import Namespace
+from functools import singledispatch
 from typing import Any, Dict, Optional, Union
 from xmlrpc.client import Boolean
 from dbt.contracts.project import UserConfig
@@ -12,9 +13,16 @@ from dbt.events.types import InvalidVarsYAML
 from dbt.exceptions import ValidationException, raise_compiler_error
 
 
-def parse_cli_vars(var_string: str) -> Dict[str, Any]:
+@singledispatch
+def parse_cli_vars(var: Any) -> None:
+    type_name = type(var)
+    raise_compiler_error("Can not parse vars of type '{}'".format(type_name))
+
+
+@parse_cli_vars.register
+def _(var: str) -> Dict[str, Any]:
     try:
-        cli_vars = yaml_helper.load_yaml_text(var_string)
+        cli_vars = yaml_helper.load_yaml_text(var)
         var_type = type(cli_vars)
         if var_type is dict:
             return cli_vars
@@ -27,6 +35,11 @@ def parse_cli_vars(var_string: str) -> Dict[str, Any]:
     except ValidationException:
         fire_event(InvalidVarsYAML())
         raise
+
+
+@parse_cli_vars.register
+def _(var: dict) -> Dict[str, Any]:
+    return var
 
 
 def get_project_config(
