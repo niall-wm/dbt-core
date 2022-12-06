@@ -133,7 +133,7 @@ def clean(ctx, **kwargs):
     flags = Flags()
     project = ctx.obj["project"]
 
-    task = CleanTask.from_project(project, flags)
+    task = CleanTask(flags, project)
 
     results = task.run()
     success = task.interpret_results(results)

@@ -1,10 +1,9 @@
 import os.path
 import os
 import shutil
-from typing import Any, Dict, List
+from typing import List
 
 from dbt import deprecations
-from dbt.config import Project
 from dbt.config.runtime import get_project_and_cli_vars_from_args
 from dbt.events.functions import fire_event
 from dbt.events.types import (
@@ -41,10 +40,6 @@ class CleanTask(BaseTask):
                 fire_event(ProtectedCleanPath(path=path))
 
         fire_event(FinishedCleanPaths())
-
-    @classmethod
-    def from_project(cls, project: Project, cli_vars: Dict[str, Any]) -> "CleanTask":
-        return cls(cli_vars, project)
 
     @classmethod
     def from_args(cls, args) -> "CleanTask":
